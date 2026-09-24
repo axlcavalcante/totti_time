@@ -46,7 +46,9 @@
     add('bath / ' + a.join(' '), b.canvas, b.ax, b.ay);
   });
   [
-    ['towel', { clothes: ['towelWrap'], armL: 'holdLow', armR: 'holdLow' }],
+    ['towel (bare chest)', { torso: 'bare', clothes: ['towelWrap'], armL: 'holdLow', armR: 'holdLow' }],
+    ['bare + shirt', { torso: 'bare', clothes: ['pants', 'tshirt'] }],
+    ['bare + rolled', { torso: 'bare', clothes: ['pants', 'tshirtRolled'], armL: 'waveUp', armR: 'waveUp' }],
     ['pants half (stand)', { clothes: ['pantsHalf'] }],
     ['pants half (hop)', { clothes: ['pantsHalf'], legs: 'hop', feet: 'hop', armL: 'holdLow', armR: 'holdLow' }],
     ['pants (hop)', { clothes: ['pants'], legs: 'hop', feet: 'hop' }],

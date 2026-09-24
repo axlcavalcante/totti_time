@@ -265,6 +265,18 @@ var MR = window.MR = window.MR || {};
            'kWWWWWWWWWWWWk',
            'kkkkkkkkkkkkkk'])
       },
+      // Bare chest (bath / getting dressed, before the t-shirt). Same shape
+      // and points as 'vest'. Below the waist the base shorts always stay on.
+      bare: {
+        pivot: [7, 12],
+        points: { neck: [7, 0], shoulderL: [0, 2], shoulderR: [13, 2] },
+        data: rows(
+          ['.....kssk.....',
+           '..kkssssSSkk..',
+           '.kssssssssSSk.'],
+          rep(9, 'ksssssssssSSSk'),
+          ['kkkkkkkkkkkkkk'])
+      },
       // Bath/shower: ONLY neck and shoulders exist; every row below is
       // transparent, so nothing more can ever show (modesty rule). The scene
       // must still hide row 5 and below behind the tub.
@@ -460,21 +472,14 @@ var MR = window.MR = window.MR || {};
       armR: { waveUp: SLEEVE_WAVE_UP }
     },
 
-    // Bath towel wrapped from the armpits to the knees (opaque, over the base
-    // undershirt + shorts): used while he pulls his underwear on under it.
+    // Bath towel around the waist, down to the knees (opaque, over the base
+    // underwear shorts): used while he pulls his underwear on under it. The
+    // top row is a tucked fold; the torso stays uncovered.
     towelWrap: {
-      torso: {
-        vest: rows(
-          rep(3, '..............'),
-          ['kkkkkkkkkkkkkk',
-           'ktttttttttttTk',
-           'kwwwwwwwwwwwwk'],
-          rep(7, 'ktttttttttttTk'))
-      },
       legs: {
         stand: rows(
-          ['ktttttttttttTk',
-           'ktttttttttttTk',
+          ['kTTTTTTTTTTTTk',
+           'kTTTTTTtttttTk',
            'kwwwwwwwwwwwwk',
            'ktttttttttttTk',
            'kttttTttttttTk',
@@ -571,6 +576,10 @@ var MR = window.MR = window.MR || {};
       }
     }
   };
+
+  // The t-shirt covers the bare torso exactly like the undershirt one.
+  CLOTHES.tshirt.torso.bare = CLOTHES.tshirt.torso.vest;
+  CLOTHES.tshirtRolled.torso.bare = CLOTHES.tshirtRolled.torso.vest;
 
   // ---------------------------------------------------------------- rig
   // Parents before children.
