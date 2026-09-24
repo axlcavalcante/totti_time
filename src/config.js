@@ -67,6 +67,9 @@ MR.config = {
   SCENE_PAD: 4,
   SCENE_STOP_MAX_H: 90,
 
+  // GREAT JOB screen: shown after STOP, then the next scene starts by itself
+  GREAT_JOB_MS: 6000,
+
   // GAME OVER screen
   GAMEOVER: {
     KID_SCALE: 4,        // the same kid, drawn bigger (shrinks to 3/2 if short)
@@ -75,6 +78,10 @@ MR.config = {
   },
 
   // Per-scene tuning
+  DRESSING: {
+    KID_SCALE: 2,
+    FLOOR_Y: 196         // where his feet touch the floor
+  },
   SHOWER: {
     KID_SCALE: 2,        // kid pixel size inside the 256x224 scene
     RIM_Y: 150           // top of the bathtub rim

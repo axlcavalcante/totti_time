@@ -112,6 +112,44 @@ var MR = window.MR = window.MR || {};
   var SLEEVE_WAVE_UP = rows(rep(10, '.......'), ['kkkk...', 'kaAk...', 'kaAk...', 'kkk....']);
   var SLEEVE_WAVE_MID = rows(rep(7, '........'), ['.kkkk...', 'kaAk....', 'kaAk....', 'kkk.....']);
 
+  // Hands at the waist, in front of the body (holding pants, a waistband...).
+  var HOLD_LOW = [
+    '..kk...',
+    '.ksk...',
+    'kssk...',
+    'kssk...',
+    'kssk...',
+    'kssk...',
+    'ksssk..',
+    '.kssk..',
+    '..ksskk',
+    '...kssk',
+    '....kk.'];
+  // Seated, reaching down to a lifted foot (putting on socks).
+  var REACH_DOWN = rows(['..kk.', '.ksk.'], rep(6, 'kssk.'), rep(6, '.kssk'), ['.ksSk', '.kssk', '..kk.']);
+  var SLEEVE_HOLD_LOW = rows(['..kk...', '.kak...', 'kaak...', 'kAak...', 'kkkk...'], rep(6, '.......'));
+  var SLEEVE_REACH = rows(['..kk.', '.kak.', 'kaak.', 'kAak.', 'kkkk.'], rep(12, '.....'));
+
+  var FEET_LIFT_R = [
+    '.........ksssSk.',
+    '.........kssssSk',
+    '..........kkkkk.',
+    '.ksssSk.........',
+    'kssssSk.........',
+    '.kkkkk..........'];
+
+  // Socks overlay built from a feet sprite: skin -> white sock with a stripe
+  // in the t-shirt color. side 'left' keeps only the left foot (cols 0-7).
+  function socksFor(data, side) {
+    return data.map(function (row) {
+      var r = row.replace(/kssssSk/g, 'kwwwwWk').replace(/ksssSk/g, 'kaaaAk'), out = '', c;
+      for (c = 0; c < r.length; c++) {
+        out += (side === 'left' && c >= 8) ? '.' : (/[kaAwW]/.test(r.charAt(c)) ? r.charAt(c) : '.');
+      }
+      return out;
+    });
+  }
+
   // ---------------------------------------------------------------- body parts
   var PARTS = {
     legs: {
@@ -127,6 +165,54 @@ var MR = window.MR = window.MR || {};
            'kwWWWk..kWWWWk',
            'kkkkkk..kkkkkk'],
           rep(7, 'ksssSk..ksssSk'))
+      },
+      // Hopping on the left foot, right knee raised (feet 'hop').
+      hop: {
+        pivot: [7, 0],
+        points: { hips: [7, 0], feet: [0, 10], ground: [7, 16] },
+        data: rows(
+          ['kWWWWWWWWWWWWk',
+           'kwWWWWWWWWWWWk',
+           'kwWWWWWWWWWWWk',
+           'kwWWWWkkWWWWWk',
+           'kwWWWk..kWWWWk',
+           'kkkkkk..kkkkkk'],
+          rep(4, 'ksssSk..ksssSk'),
+          rep(3, 'ksssSk........'))
+      },
+      // Seated, front view: thighs foreshortened, shins down (feet 'bare').
+      sit: {
+        pivot: [7, 0],
+        points: { hips: [7, 0], feet: [0, 10], ground: [7, 13] },
+        data: rows(
+          ['kWWWWWWWWWWWWk',
+           'kwWWWWWWWWWWWk',
+           'kwWWWWkkWWWWWk',
+           'kkkkkk..kkkkkk'],
+          rep(6, 'ksssSk..ksssSk'))
+      },
+      // Seated with the left / right foot lifted (feet 'liftL' / 'liftR').
+      sitLiftL: {
+        pivot: [7, 0],
+        points: { hips: [7, 0], feet: [0, 7], ground: [7, 13] },
+        data: rows(
+          ['kWWWWWWWWWWWWk',
+           'kwWWWWWWWWWWWk',
+           'kwWWWWkkWWWWWk',
+           'kkkkkk..kkkkkk'],
+          rep(3, 'ksssSk..ksssSk'),
+          rep(3, '........ksssSk'))
+      },
+      sitLiftR: {
+        pivot: [7, 0],
+        points: { hips: [7, 0], feet: [0, 7], ground: [7, 13] },
+        data: rows(
+          ['kWWWWWWWWWWWWk',
+           'kwWWWWWWWWWWWk',
+           'kwWWWWkkWWWWWk',
+           'kkkkkk..kkkkkk'],
+          rep(3, 'ksssSk..ksssSk'),
+          rep(3, 'ksssSk........'))
       },
       // Transparent, same rig points: for shots where the legs are out of
       // frame (bath, close-ups). Keeps the rig root and ground anchor.
@@ -144,6 +230,24 @@ var MR = window.MR = window.MR || {};
         data: ['.ksssSk..ksssSk.',
                'kssssSk..kssssSk',
                '.kkkkk....kkkkk.']
+      },
+      // 16x6: one foot 3 rows higher (right: hop / liftR, left: liftL)
+      hop: {
+        pivot: [1, 0],
+        data: FEET_LIFT_R
+      },
+      liftR: {
+        pivot: [1, 0],
+        data: FEET_LIFT_R
+      },
+      liftL: {
+        pivot: [1, 0],
+        data: ['.ksssSk.........',
+               'kssssSk.........',
+               '.kkkkk..........',
+               '.........ksssSk.',
+               '.........kssssSk',
+               '..........kkkkk.']
       }
     },
 
@@ -191,7 +295,9 @@ var MR = window.MR = window.MR || {};
       waveUp: { pivot: [6, 13], data: mirror(WAVE_UP) },
       waveMid: { pivot: [7, 10], data: mirror(WAVE_MID) },
       clapOpen: { pivot: [2, 0], data: CLAP_OPEN },
-      clapClosed: { pivot: [2, 0], data: CLAP_CLOSED }
+      clapClosed: { pivot: [2, 0], data: CLAP_CLOSED },
+      holdLow: { pivot: [3, 0], data: HOLD_LOW },
+      reachDown: { pivot: [3, 0], data: REACH_DOWN }
     },
 
     // Screen-right arm, front view.
@@ -205,7 +311,9 @@ var MR = window.MR = window.MR || {};
       clapOpen: { pivot: [6, 0], data: mirror(CLAP_OPEN) },
       clapClosed: { pivot: [6, 0], data: mirror(CLAP_CLOSED) },
       scrubA: { pivot: [6, 18], data: mirror(SCRUB_A) },
-      scrubB: { pivot: [6, 18], data: mirror(SCRUB_B) }
+      scrubB: { pivot: [6, 18], data: mirror(SCRUB_B) },
+      holdLow: { pivot: [3, 0], data: mirror(HOLD_LOW) },
+      reachDown: { pivot: [1, 0], data: mirror(REACH_DOWN) }
     },
 
     head: {
@@ -282,6 +390,20 @@ var MR = window.MR = window.MR || {};
     }
   };
 
+  // `hand` point of every arm variant (kid pixels inside the arm sprite), so
+  // scenes can put props in his hands (pants, shirt, sock, spoon...).
+  (function () {
+    var HANDS = {
+      armL: { down: [2, 11], waveUp: [3, 1], waveMid: [2, 1], clapOpen: [6, 3], clapClosed: [7, 3],
+        scrubA: [9, 1], scrubB: [7, 1], holdLow: [5, 9], reachDown: [2, 15] },
+      armR: { down: [1, 11], waveUp: [3, 1], waveMid: [5, 1], clapOpen: [2, 3], clapClosed: [1, 3],
+        scrubA: [3, 1], scrubB: [5, 1], holdLow: [1, 9], reachDown: [2, 15] }
+    }, side, v;
+    for (side in HANDS) {
+      for (v in HANDS[side]) { PARTS[side][v].points = { hand: HANDS[side][v] }; }
+    }
+  }());
+
   // ------------------------------------------------------- clothing overlays
   // Same size and pivot as the base part variant they cover. '.' lets the
   // base part show through.
@@ -306,14 +428,87 @@ var MR = window.MR = window.MR || {};
         waveUp: mirror(SLEEVE_WAVE_UP),
         waveMid: mirror(SLEEVE_WAVE_MID),
         clapOpen: SLEEVE_CLAP,
-        clapClosed: SLEEVE_CLAP
+        clapClosed: SLEEVE_CLAP,
+        holdLow: SLEEVE_HOLD_LOW,
+        reachDown: SLEEVE_REACH
       },
       armR: {
         down: rows(['kk..', 'kak.', 'kaAk', 'kaAk', 'kkkk'], rep(8, '....')),
         waveUp: SLEEVE_WAVE_UP,
         waveMid: SLEEVE_WAVE_MID,
         clapOpen: mirror(SLEEVE_CLAP),
-        clapClosed: mirror(SLEEVE_CLAP)
+        clapClosed: mirror(SLEEVE_CLAP),
+        holdLow: mirror(SLEEVE_HOLD_LOW),
+        reachDown: mirror(SLEEVE_REACH)
+      }
+    },
+
+    // T-shirt half on: head through, bunched at the chest, sleeves on the
+    // raised arms (the undershirt still shows below).
+    tshirtRolled: {
+      torso: {
+        vest: rows(
+          ['..............',
+           '.kaaaksskaaak.',
+           'kaaaaakkaaaaAk',
+           'kaaaaaaaaaaAAk',
+           'kAAAAAAAAAAAAk',
+           'kkkkkkkkkkkkkk'],
+          rep(7, '..............'))
+      },
+      armL: { waveUp: mirror(SLEEVE_WAVE_UP) },
+      armR: { waveUp: SLEEVE_WAVE_UP }
+    },
+
+    // Bath towel wrapped from the armpits to the knees (opaque, over the base
+    // undershirt + shorts): used while he pulls his underwear on under it.
+    towelWrap: {
+      torso: {
+        vest: rows(
+          rep(3, '..............'),
+          ['kkkkkkkkkkkkkk',
+           'ktttttttttttTk',
+           'kwwwwwwwwwwwwk'],
+          rep(7, 'ktttttttttttTk'))
+      },
+      legs: {
+        stand: rows(
+          ['ktttttttttttTk',
+           'ktttttttttttTk',
+           'kwwwwwwwwwwwwk',
+           'ktttttttttttTk',
+           'kttttTttttttTk',
+           'ktttttttttttTk',
+           'kttttTttttttTk',
+           'ktttttttttttTk',
+           'kTTTTTTTTTTTTk',
+           'kkkkkkkkkkkkkk'],
+          rep(3, '..............'))
+      }
+    },
+
+    // Pants not pulled up yet: around the ankles (stand) or bunched at the
+    // knees with one leg in (hop).
+    pantsHalf: {
+      legs: {
+        stand: rows(rep(10, '..............'),
+          ['kPPPPPPPPPPPPk',
+           'kpppPk..kpppPk',
+           'kPPPPk..kPPPPk']),
+        hop: rows(rep(8, '..............'),
+          ['kPPPPPPPPPPPPk',
+           'kpppPk..kpppPk',
+           'kpppPk..kpppPk',
+           'kpppPk..kpppPk',
+           'kPPPPk..kPPPPk'])
+      }
+    },
+
+    // One sock on (left foot only).
+    sockLeft: {
+      feet: {
+        bare: socksFor(['.ksssSk..ksssSk.', 'kssssSk..kssssSk', '.kkkkk....kkkkk.'], 'left'),
+        liftR: socksFor(FEET_LIFT_R, 'left')
       }
     },
 
@@ -325,7 +520,38 @@ var MR = window.MR = window.MR || {};
            'kppppppppppPPk',
            'kpppppkkppppPk'],
           rep(8, 'kpppPk..kpppPk'),
-          ['kPPPPk..kPPPPk'])
+          ['kPPPPk..kPPPPk']),
+        hop: rows(
+          ['kPPPPPPPPPPPPk',
+           'kPPPPPPPPPPPPk',
+           'kppppppppppPPk',
+           'kpppppkkppppPk'],
+          rep(5, 'kpppPk..kpppPk'),
+          ['kpppPk..kPPPPk'],
+          rep(2, 'kpppPk........'),
+          ['kPPPPk........']),
+        sit: rows(
+          ['kPPPPPPPPPPPPk',
+           'kPPPPPPPPPPPPk',
+           'kpppppkkppppPk'],
+          rep(6, 'kpppPk..kpppPk'),
+          ['kPPPPk..kPPPPk']),
+        sitLiftL: rows(
+          ['kPPPPPPPPPPPPk',
+           'kPPPPPPPPPPPPk',
+           'kpppppkkppppPk'],
+          rep(3, 'kpppPk..kpppPk'),
+          ['kPPPPk..kpppPk'],
+          rep(2, '........kpppPk'),
+          ['........kPPPPk']),
+        sitLiftR: rows(
+          ['kPPPPPPPPPPPPk',
+           'kPPPPPPPPPPPPk',
+           'kpppppkkppppPk'],
+          rep(3, 'kpppPk..kpppPk'),
+          ['kpppPk..kPPPPk'],
+          rep(2, 'kpppPk........'),
+          ['kPPPPk........'])
       }
     },
 
@@ -386,7 +612,8 @@ var MR = window.MR = window.MR || {};
     mouth: 'smile',
     hair: 'dry',
     offsets: null,       // { slot: [dx, dy] }, inherited by child parts
-    order: null
+    order: null,
+    clothes: null        // overrides the outfit's clothes list (dressing stages)
   };
 
   var spriteCache = {};  // "base|slot|variant|colors" / "item|slot|variant|colors"
@@ -457,7 +684,7 @@ var MR = window.MR = window.MR || {};
 
     // 2. Layer list: each base part, then its clothing overlays.
     order = p.order || DRAW_ORDER;
-    clothes = OUTFITS[p.outfit].clothes;
+    clothes = p.clothes || OUTFITS[p.outfit].clothes;
     for (i = 0; i < order.length; i++) {
       r = placed[order[i]];
       if (!r) { continue; }

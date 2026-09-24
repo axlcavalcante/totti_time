@@ -94,7 +94,8 @@ var MR = window.MR = window.MR || {};
     }),
 
     // Clothing color sets. Clothing art uses only these keys:
-    // a/A = top (t-shirt) main/shade, p/P = pants main/shade, n = shoes.
+    // a/A = top (t-shirt) main/shade, p/P = pants main/shade, n = shoes,
+    // t/T = bath towel.
     // Socks are white (w/W) with an 'a' stripe so they match the top.
     OUTFIT_COLORS: {
       'default': makeMap({
@@ -102,14 +103,18 @@ var MR = window.MR = window.MR || {};
         A: [146, 0, 36],
         p: [36, 73, 182],
         P: [36, 36, 109],
-        n: [219, 109, 0]
+        n: [219, 109, 0],
+        t: [219, 73, 73],    // bath towel (same red as the shower towel)
+        T: [146, 36, 36]
       }),
       blue: makeMap({
         a: [36, 146, 219],
         A: [36, 73, 146],
         p: [73, 73, 73],
         P: [36, 36, 36],
-        n: [219, 109, 0]
+        n: [219, 109, 0],
+        t: [219, 73, 73],
+        T: [146, 36, 36]
       })
     },
 
@@ -183,6 +188,44 @@ var MR = window.MR = window.MR || {};
         W: [182, 182, 219],  // foam shade
         u: [146, 182, 219],  // bubble / foam outline
         s: [219, 219, 255]   // steam
+      })
+    },
+
+    // DRESSING scene (bedroom). Each map is one palette line (<= 15 colors).
+    DRESSING: {
+      room: makeMap({
+        k: [36, 36, 73],     // outline
+        L: [182, 219, 255],  // wallpaper
+        M: [146, 182, 219],  // wallpaper shade
+        s: [255, 255, 219],  // wallpaper stars
+        o: [182, 109, 36],   // wood
+        O: [109, 73, 36],    // wood dark
+        l: [219, 146, 73],   // wood light
+        f: [182, 146, 109],  // floor planks
+        F: [146, 109, 73],   // floor seams
+        c: [109, 182, 255],  // sky in the window
+        w: [255, 255, 255],
+        u: [255, 182, 73],   // curtains
+        U: [219, 146, 36],
+        r: [219, 73, 109],   // rug
+        R: [255, 146, 182]
+      }),
+      toys: makeMap({
+        k: [36, 36, 73],
+        w: [255, 255, 255],
+        W: [182, 182, 219],  // pillow shade
+        b: [73, 109, 219],   // blanket
+        B: [109, 146, 255],
+        r: [219, 73, 73],    // toy car, towel
+        R: [146, 36, 36],
+        x: [73, 73, 109],    // wheels, robot joints
+        g: [146, 146, 182],  // robot
+        G: [219, 219, 255],
+        y: [255, 219, 73],   // ball, block
+        Y: [219, 146, 36],
+        t: [182, 109, 36],   // teddy bear
+        T: [146, 73, 36],
+        e: [73, 182, 73]     // block
       })
     },
 

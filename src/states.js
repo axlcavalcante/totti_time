@@ -734,10 +734,12 @@ var MR = window.MR = window.MR || {};
 
 // ------------------------------------------------------------------ GREAT JOB
 // After STOP: the kid crouches, jumps with both arms up, lands and claps
-// three times, under falling confetti. Tap -> OPTIONS (next scene: later).
+// three times, under falling confetti. After GREAT_JOB_MS it moves on by
+// itself to the next scene's title card (OPTIONS after the last scene, until
+// END exists). Taps are ignored so it can't be skipped by accident.
 (function () {
   var cfg = MR.config, C = MR.palette.UI, T = MR.palette.TEXT, font = MR.font;
-  var params = {}, t0 = 0, L = null;
+  var params = {}, t0 = 0, L = null, done = false;
 
   var SCALE = 2, JUMP_H = 16;
   var STEPS = [
@@ -787,7 +789,7 @@ var MR = window.MR = window.MR || {};
 
   function render(ctx, w, h) {
     var cx = Math.round(w / 2), t = MR.now() - t0, a = stepAt(t), st = a.step,
-      lift = 0, b, handY, next = cfg.SCENES[params.index + 1], shadowW;
+      lift = 0, b, handY, next = cfg.SCENES[params.index + 1], shadowW, k;
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, w, h);
     if (!L) { return; }
@@ -814,8 +816,13 @@ var MR = window.MR = window.MR || {};
     }
 
     font.drawCentered(ctx, next ? 'NEXT: ' + next.label : 'ALL DONE!', cx, L.groundY + 16, 'white', 1);
-    font.drawCentered(ctx, 'COMING SOON', cx, L.groundY + 30, 'dim', 1);
-    font.drawCentered(ctx, 'TAP TO GO BACK', cx, h - 20, 'white', 1);
+
+    // a thin bar fills up until the next scene starts on its own
+    k = Math.min(1, t / cfg.GREAT_JOB_MS);
+    ctx.fillStyle = C.bevelDark;
+    ctx.fillRect(cx - 50, L.groundY + 30, 100, 4);
+    ctx.fillStyle = T.yellow;
+    ctx.fillRect(cx - 49, L.groundY + 31, Math.round(98 * k), 2);
   }
 
   MR.states.add('sceneDone', {
@@ -823,15 +830,23 @@ var MR = window.MR = window.MR || {};
       var j;
       params = p;
       t0 = now;
+      done = false;
       for (j = 0; j < STEPS.length; j++) { MR.character.bake(STEPS[j].pose); }   // pre-bake
     },
     layout: function (w, h) {
       L = { titleY: 28 };
       L.groundY = Math.min(h - 80, Math.max(150, Math.round(h / 2) + 40));
     },
-    update: function () { MR.states.invalidate(); },
-    render: render,
-    pointerUp: function () { MR.states.go('options'); }
+    update: function (now) {
+      var n = params.index + 1;
+      MR.states.invalidate();
+      if (!done && now - t0 >= cfg.GREAT_JOB_MS) {
+        done = true;
+        if (n < cfg.SCENES.length) { MR.states.go('transition', { index: n, durations: params.durations }); }
+        else { MR.states.go('options'); }
+      }
+    },
+    render: render
   });
 }());
 
