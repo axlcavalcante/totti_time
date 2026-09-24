@@ -96,7 +96,7 @@ The **animation clock** advances by `dt * speed(progress)`, and the current fram
 ```
 speed(p) = 1                                   if p < 0.5
 speed(p) = 1 + (MAX_SPEED - 1) * ((p - 0.5) / 0.5)^2   if p >= 0.5   // smooth ease-in
-MAX_SPEED = 3   // tunable in config.js
+MAX_SPEED = 3.3   // tunable in config.js
 ```
 
 ## Red alert (progress >= 98%)
