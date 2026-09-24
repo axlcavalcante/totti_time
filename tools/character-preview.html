@@ -39,6 +39,12 @@
   add('ready / colors:blue', blue.canvas, blue.ax, blue.ay);
   var blink = ch.bake({ outfit: 'ready', eyes: 'closed', offsets: { torso: [0, 1] } });
   add('blink + breath', blink.canvas, blink.ax, blink.ay);
+  [['scrubA', 'scrubB', 'closed', 'smile'], ['scrubB', 'scrubA', 'closed', 'smile'],
+   ['down', 'down', 'happy', 'open']].forEach(function (a) {
+    var b = ch.bake({ outfit: 'bath', torso: 'bath', legs: 'hidden', feet: null, hair: 'wet',
+      armL: a[0], armR: a[1], eyes: a[2], mouth: a[3], order: ch.ORDER_ARMS_FRONT });
+    add('bath / ' + a.join(' '), b.canvas, b.ax, b.ay);
+  });
 
   // Raw parts
   var map = MR.palette.merge(MR.palette.CHARACTER_BODY, MR.palette.OUTFIT_COLORS['default']);
