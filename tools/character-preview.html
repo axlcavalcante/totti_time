@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Character Preview</title>
+<style>
+  body { margin: 0; padding: 16px; background: #111; color: #ccc; font: 12px monospace; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<p>Dev only. Every part, overlay, outfit and idle frame at 4x. Warnings go to the console (MR.config.DEV is on).</p>
+<canvas id="c"></canvas>
+<script src="../src/config.js"></script>
+<script>MR.config.DEV = true;</script>
+<script src="../src/palette.js"></script>
+<script src="../src/font.js"></script>
+<script src="../src/sprites.js"></script>
+<script src="../src/character.js"></script>
+<script>
+(function () {
+  var S = 4, ch = MR.character, canvas = document.getElementById('c'), ctx, x, y, rowH, k, v, item, slot;
+  var items = [];   // { label, canvas, groundX?, groundY? }
+
+  MR.font.init();
+
+  function add(label, c, ax, ay) { items.push({ label: label, canvas: c, ax: ax, ay: ay }); }
+
+  // Poses per outfit and color set
+  var outfits = ['underwear', 'dressed', 'ready'];
+  var arms = ['down', 'waveMid', 'waveUp'];
+  outfits.forEach(function (o) {
+    arms.forEach(function (a) {
+      var b = ch.bake({ outfit: o, armR: a });
+      add(o + ' / ' + a, b.canvas, b.ax, b.ay);
+    });
+  });
+  var blue = ch.bake({ outfit: 'ready', colors: 'blue' });
+  add('ready / colors:blue', blue.canvas, blue.ax, blue.ay);
+  var blink = ch.bake({ outfit: 'ready', eyes: 'closed', offsets: { torso: [0, 1] } });
+  add('blink + breath', blink.canvas, blink.ax, blink.ay);
+
+  // Raw parts
+  var map = MR.palette.merge(MR.palette.CHARACTER_BODY, MR.palette.OUTFIT_COLORS['default']);
+  for (k in ch.PARTS) {
+    for (v in ch.PARTS[k]) { add('part ' + k + '.' + v, MR.sprites.buildSprite(ch.PARTS[k][v].data, map)); }
+  }
+  for (item in ch.CLOTHES) {
+    for (slot in ch.CLOTHES[item]) {
+      for (v in ch.CLOTHES[item][slot]) {
+        add(item + ' ' + slot + '.' + v, MR.sprites.buildSprite(ch.CLOTHES[item][slot][v], map));
+      }
+    }
+  }
+
+  // Grid layout
+  var W = 1100, pad = 16;
+  canvas.width = W;
+  x = pad; y = pad; rowH = 0;
+  var pos = items.map(function (it) {
+    var w = Math.max(it.canvas.width * S, 110), h = it.canvas.height * S + 20;
+    if (x + w > W - pad) { x = pad; y += rowH + pad; rowH = 0; }
+    var p = { x: x, y: y };
+    x += w + pad;
+    if (h > rowH) { rowH = h; }
+    return p;
+  });
+  canvas.height = y + rowH + pad;
+  ctx = canvas.getContext('2d');
+  MR.sprites.setSmoothing(ctx, false);
+  ctx.fillStyle = MR.palette.UI.bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  items.forEach(function (it, i) {
+    var p = pos[i];
+    ctx.fillStyle = '#335';
+    ctx.fillRect(p.x, p.y + 12, it.canvas.width * S, it.canvas.height * S);
+    ctx.drawImage(it.canvas, p.x, p.y + 12, it.canvas.width * S, it.canvas.height * S);
+    if (it.ax !== undefined) {   // ground anchor
+      ctx.fillStyle = '#0f0';
+      ctx.fillRect(p.x + it.ax * S - 1, p.y + 12 + it.ay * S - 1, 3, 3);
+    }
+    ctx.fillStyle = '#ccc';
+    ctx.fillText(it.label + ' ' + it.canvas.width + 'x' + it.canvas.height, p.x, p.y + 8);
+  });
+}());
+</script>
+</body>
+</html>
