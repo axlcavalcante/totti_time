@@ -77,7 +77,7 @@ OPTIONS -> TRANSITION(1) -> SCENE(1) --STOP--> TRANSITION(2) -> SCENE(2) ... SCE
 - **OPTIONS:** Five rows, one per scene, each with its label and `[-] mm:ss [+]` buttons. There is no text input, to avoid the Android keyboard. The step is 30 s and the range is 30 s–20 min. Values are saved to `localStorage` (inside try/catch) and restored on the next launch. A big START button is at the bottom.
 - **TRANSITION:** A stand-alone ~4 s title card (`TRANSITION_MS`) shown *before* the scene, full screen with no time bar or STOP. Letterbox bars slide in, "SCENE n/5" types out, the scene's French `title` from `config.js` (e.g. "L'HEURE DU BAIN") drops in letter by letter in the title font (`MR.font.title`: gradient, outline and shadow, derived from the UI glyphs), an underline grows, a shine sweeps across, then the bars close and the scene starts. **The timer does not run during transitions.** Taps are ignored.
 - **SCENE:** The looping animation, time bar and STOP button. The timer starts when the transition ends.
-- **GAMEOVER:** Shown when time reaches 0 before STOP is pressed. It displays a close-up of the kid **crying**, with clearly animated tears welling up and dropping from the eyes in a loop, and big "GAME OVER" text over it. A CONTINUE button goes to the next scene so the routine isn't blocked.
+- **GAMEOVER:** Shown when time reaches 0 before STOP. The **same kid** (the normal rig, drawn up to 4x) cries: sad brows and eyes shut tight (`eyes: 'cryA'/'cryB'`), a wailing mouth (`mouth: 'wailA'/'wailB'`) and sobbing dips. Tears well up in the outer eye corners (anchored to the baked `head.eyes` point), roll down the cheeks and drip off below the chin, with wet trails on the cheeks. Big red "GAME OVER" letters (title font, `red` color set) thud in. A CONTINUE button appears after 1.5 s and goes to the next scene's title card (OPTIONS after the last one) so the routine isn't blocked.
 - **GREAT JOB (`sceneDone`):** After STOP, the kid jumps with both arms up, lands and claps under falling confetti.
 - **END:** A short "ALL DONE!" celebration with the kid happy, then a tap returns to OPTIONS.
 
@@ -127,7 +127,7 @@ He is a **white boy, about 6–7 years old**, with **slightly red/rosy cheeks** 
   - **legs** variants: underwear shorts, pants
   - **feet** variants: bare, socks, shoes
   - **arms/hands** in poses needed by the scenes (holding a spoon, a toothbrush, pulling on a shirt, and so on)
-- Proportions are chibi-leaning but not super-deformed: a full-body sprite is about **32×56 px** at native resolution. Close-ups (game over head, shoes scene feet) are **separate larger sprites** drawn to match the same palette and design.
+- Proportions are chibi-leaning but not super-deformed: a full-body sprite is about **32×56 px** at native resolution. Close-up moments reuse **the same rig drawn at a bigger scale** with extra part variants (never a separate model of the kid). Only the shoes scene's feet may need a dedicated larger sprite, drawn to match the same palette.
 - **Sprite data format:** arrays of strings where each character is a palette index (`.` = transparent). A single `buildSprite(data, palette)` function converts them into cached canvases (normal plus red-alert variants).
 - **Modesty rule:** the character is a child, so the shower scene must be fully non-revealing. Only the head and shoulders show above an opaque shower curtain or the tub edge, with steam and bubbles. In the dressing scene he starts in an undershirt and underwear shorts. Never draw him unclothed.
 

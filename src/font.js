@@ -216,10 +216,10 @@ var MR = window.MR = window.MR || {};
     return out;
   }
 
-  function buildTitleGlyph(ch, sizeKey) {
+  function buildTitleGlyph(ch, sizeKey, setKey) {
     var sz = TITLE_SIZES[sizeKey], f = 1 << sz.passes, g = inkGrid(ch), i, x, y, dx,
       o = sz.outline, sh = sz.shadow, P = o, h, w, ink, rows = [], row, capTop, capH, band,
-      data, normal, shine, v, T = MR.palette.TITLE;
+      data, normal, shine, v, T = setKey === 'red' ? MR.palette.TITLE_RED : MR.palette.TITLE;
     for (i = 0; i < sz.passes; i++) { g = scale2x(g); }
     // room for outline around, shadow bottom-right, bold on the right
     g = pad(g, P, sh + sz.bold);
@@ -267,9 +267,10 @@ var MR = window.MR = window.MR || {};
       advance: GW * f + sz.bold + o + 1
     };
   }
-  function titleGlyph(ch, sizeKey) {
-    var key = sizeKey + ch;
-    if (!titleCache[key]) { titleCache[key] = buildTitleGlyph(ch, sizeKey); }
+  // setKey: undefined = gold (TITLE), 'red' = TITLE_RED. Same metrics.
+  function titleGlyph(ch, sizeKey, setKey) {
+    var key = sizeKey + (setKey || '') + ch;
+    if (!titleCache[key]) { titleCache[key] = buildTitleGlyph(ch, sizeKey, setKey); }
     return titleCache[key];
   }
 
@@ -307,14 +308,14 @@ var MR = window.MR = window.MR || {};
 
   // Draws one line with its cap top at capY. letter(i) may return
   // { hidden, dy, shine } per character index (spaces included).
-  function titleDraw(ctx, text, x, capY, sizeKey, letter) {
+  function titleDraw(ctx, text, x, capY, sizeKey, letter, setKey) {
     var i, ch, g, opt;
     text = String(text).toUpperCase();
     for (i = 0; i < text.length; i++) {
       ch = text.charAt(i);
       opt = letter ? letter(i) : null;
       if (ch !== ' ' && !(opt && opt.hidden)) {
-        g = titleGlyph(ch, sizeKey);
+        g = titleGlyph(ch, sizeKey, setKey);
         ctx.drawImage(opt && opt.shine ? g.shine : g.normal, x, capY - g.capOffset + (opt && opt.dy ? Math.round(opt.dy) : 0));
       }
       x += titleAdvance(ch, sizeKey);
