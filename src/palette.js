@@ -167,9 +167,36 @@ var MR = window.MR = window.MR || {};
         u: [146, 182, 219],  // bubble / foam outline
         s: [219, 219, 255]   // steam
       })
-    }
+    },
 
-    // TODO(red alert): add a luminance -> red ramp mapping used by
-    // MR.sprites to pre-render red variants at startup.
+    // Red alert: luminance -> red ramp (dark to light), used by
+    // MR.sprites.makeRed (pre-rendered at init) and toRed (single colors).
+    RED_RAMP: [[0, 0, 0], [73, 0, 0], [146, 0, 36], [219, 36, 36], [255, 109, 109], [255, 219, 219]]
   };
+
+  function redFor(r, g, b) {
+    var ramp = MR.palette.RED_RAMP, l = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return ramp[Math.min(ramp.length - 1, Math.floor(l * ramp.length))];
+  }
+
+  // Maps one 'rgb(r,g,b)' color to its red-alert equivalent.
+  function toRed(css) {
+    var m = /rgb\((\d+),(\d+),(\d+)\)/.exec(css), c;
+    if (!m) { return css; }
+    c = redFor(+m[1], +m[2], +m[3]);
+    return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+  }
+
+  MR.palette.redFor = redFor;
+  MR.palette.toRed = toRed;
+  MR.palette.UI_RED = (function () {
+    var out = {}, k;
+    for (k in MR.palette.UI) {
+      if (MR.palette.UI.hasOwnProperty(k)) {
+        // STOP and the bar fill are already red: keep them bright
+        out[k] = (/^stop|^bar(?!Trough)/.test(k)) ? MR.palette.UI[k] : toRed(MR.palette.UI[k]);
+      }
+    }
+    return out;
+  }());
 }());
