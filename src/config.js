@@ -80,7 +80,8 @@ MR.config = {
   // Per-scene tuning
   DRESSING: {
     KID_SCALE: 2,
-    FLOOR_Y: 196         // where his feet touch the floor
+    FLOOR_Y: 196,        // where his feet touch the floor
+    TEMPO: 1.25          // step durations x1.25 = 20% slower loop
   },
   SHOWER: {
     KID_SCALE: 2,        // kid pixel size inside the 256x224 scene
