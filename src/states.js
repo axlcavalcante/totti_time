@@ -1,4 +1,5 @@
-// State machine: options, (transition, scene, gameover, end come later). ES5 only.
+// State machine: options, scene (+ stubs); transition/gameover/end come later.
+// ES5 only.
 //
 // A state is an object with any of:
 //   enter(params, now), exit(), minHeight(metrics), layout(w, h, metrics),
@@ -60,7 +61,8 @@ var MR = window.MR = window.MR || {};
     pointerMove: function (x, y, now) { call('pointerMove', x, y, now); },
     pointerUp: function (x, y, now) { call('pointerUp', x, y, now); },
     pointerCancel: function (now) { call('pointerCancel', now); },
-    currentName: function () { return currentName; }
+    currentName: function () { return currentName; },
+    get: function (name) { return registry[name]; }
   };
 }());
 
@@ -212,7 +214,7 @@ var MR = window.MR = window.MR || {};
       label: 'START', style: 'start',
       onPress: function () {
         MR.settings.save(durations);
-        MR.states.go('start', { durations: durations.slice() });
+        MR.states.go('scene', { index: 0, durations: durations.slice() });
       }
     });
     buttons.push(startBtn);
@@ -400,31 +402,172 @@ var MR = window.MR = window.MR || {};
   });
 }());
 
-// ------------------------------------------------------------------ START (stub)
-// Placeholder until TRANSITION/SCENE exist: shows the plan, tap goes back.
+// ------------------------------------------------------------------ SCENE
+// Generic scene player: timestamp timer, shrinking time bar, STOP button and
+// the animation clock. The scene art lives in src/scenes/<id>.js as
+// MR.scenes[id] = { init(), render(ctx, clock) } drawing a 256x224 frame.
 (function () {
   var cfg = MR.config, C = MR.palette.UI, ui = MR.ui, font = MR.font;
-  var durations = [];
 
-  MR.states.add('start', {
-    enter: function (params) { durations = params.durations || []; },
+  var index = 0, durations = [], mod = null;
+  var startTime = 0, duration = 1, last = 0, clock = 0, progress = 0, finished = false;
+  var active = null, L = null;
+  var stopBtn = ui.button({ label: 'STOP', style: 'stop', onPress: function () { finish('sceneDone'); } });
 
-    render: function (ctx, w, h) {
-      var i, y = 24, cx = Math.round(w / 2);
-      ctx.fillStyle = C.bg;
-      ctx.fillRect(0, 0, w, h);
-      font.drawCentered(ctx, 'READY?', cx, y, 'yellow', 3);
-      y += 40;
-      for (i = 0; i < cfg.SCENES.length; i++) {
-        font.drawCaps(ctx, (i + 1) + '/5 ' + cfg.SCENES[i].label, 20, y, 'white', 1);
-        font.drawCaps(ctx, ui.formatTime(durations[i]), w - 20 - font.measure('00:00', 1), y, 'dim', 1);
-        y += 14;
-      }
-      MR.character.draw(ctx, { outfit: 'ready' }, cx, y + 70, 1);
-      font.drawCentered(ctx, 'SCENES COMING SOON', cx, y + 86, 'dim', 1);
-      font.drawCentered(ctx, 'TAP TO GO BACK', cx, h - 20, 'white', 1);
+  // Animation speed multiplier: 1 until SPEED_RAMP_START, then eases in to
+  // MAX_SPEED at the end. Applied to the clock's dt, never to elapsed time.
+  function speed(p) {
+    var r0 = cfg.SPEED_RAMP_START, k;
+    if (p < r0) { return 1; }
+    k = (p - r0) / (1 - r0);
+    return 1 + (cfg.MAX_SPEED - 1) * k * k;
+  }
+
+  function finish(next) {
+    if (finished) { return; }
+    finished = true;
+    MR.states.go(next, { index: index, durations: durations });
+  }
+
+  function stopMin(metrics) { return Math.max(metrics.minTouch + 8, 28); }
+
+  function fixedHeight() {
+    return cfg.SCENE_PAD + cfg.SCENE_H + cfg.SCENE_PAD + cfg.SCENE_READOUT_H +
+      cfg.SCENE_BAR_H + cfg.SCENE_PAD + cfg.SCENE_PAD;
+  }
+
+  function minHeight(metrics) { return fixedHeight() + stopMin(metrics); }
+
+  function layout(w, h, metrics) {
+    var stopH = Math.min(cfg.SCENE_STOP_MAX_H, Math.max(stopMin(metrics), h - fixedHeight())),
+      top = Math.max(0, Math.floor((h - fixedHeight() - stopH) / 2));
+    L = { w: w };
+    L.viewY = top + cfg.SCENE_PAD;
+    L.readoutY = L.viewY + cfg.SCENE_H + cfg.SCENE_PAD;
+    L.barY = L.readoutY + cfg.SCENE_READOUT_H;
+    ui.setRect(stopBtn, 4, L.barY + cfg.SCENE_BAR_H + cfg.SCENE_PAD, w - 8, stopH);
+    stopBtn.labelScale = stopH >= 40 ? 3 : 2;
+  }
+
+  function renderPlaceholder(ctx) {
+    ctx.fillStyle = C.panel;
+    ctx.fillRect(0, 0, cfg.NATIVE_W, cfg.SCENE_H);
+    font.drawCentered(ctx, cfg.SCENES[index].label, cfg.NATIVE_W / 2, 90, 'yellow', 2);
+    font.drawCentered(ctx, 'SCENE COMING SOON', cfg.NATIVE_W / 2, 120, 'dim', 1);
+  }
+
+  function render(ctx, w, h) {
+    var remaining;
+    ctx.fillStyle = C.bevelDark;
+    ctx.fillRect(0, 0, w, h);
+    if (!L) { return; }
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, L.viewY, cfg.NATIVE_W, cfg.SCENE_H);
+    ctx.clip();
+    ctx.translate(0, L.viewY);
+    if (mod) { mod.render(ctx, clock); } else { renderPlaceholder(ctx); }
+    ctx.restore();
+
+    remaining = Math.ceil(duration * (1 - progress) / 1000);
+    font.drawCaps(ctx, (index + 1) + '/' + cfg.SCENES.length + ' ' + cfg.SCENES[index].label,
+      4, L.readoutY + 1, 'dim', 1);
+    font.drawCaps(ctx, ui.formatTime(remaining), w - 4 - (font.measure('00:00', 1) - 1),
+      L.readoutY + 1, 'white', 1);
+    ui.drawTimeBar(ctx, 4, L.barY, w - 8, cfg.SCENE_BAR_H, progress);
+    ui.drawButton(ctx, stopBtn);
+  }
+
+  MR.speedAt = speed;
+
+  MR.states.add('scene', {
+    enter: function (params, now) {
+      index = params.index || 0;
+      durations = params.durations || MR.settings.load();
+      mod = MR.scenes && MR.scenes[cfg.SCENES[index].id] || null;
+      if (mod && !mod.ready) { mod.init(); mod.ready = true; }
+      startTime = now;
+      last = now;
+      duration = Math.max(1, durations[index]) * 1000;
+      clock = 0;
+      progress = 0;
+      finished = false;
+      active = null;
+      stopBtn.pressed = false;
     },
 
-    pointerUp: function () { MR.states.go('options'); }
+    minHeight: minHeight,
+    layout: layout,
+
+    update: function (now) {
+      var dt;
+      if (finished) { return; }
+      // Timer: from timestamps only, so dropped frames never skew it.
+      progress = Math.min(1, Math.max(0, (now - startTime) / duration));
+      // Animation: clamp dt so a stall (tab hidden) doesn't jump the loop.
+      dt = Math.min(Math.max(now - last, 0), cfg.MAX_DT);
+      last = now;
+      clock += dt * speed(progress);
+      MR.states.invalidate();
+      if (progress >= 1) { finish('gameover'); }
+    },
+
+    render: render,
+
+    pointerDown: function (x, y) {
+      if (ui.contains(stopBtn, x, y)) { active = stopBtn; stopBtn.pressed = true; }
+    },
+    pointerMove: function (x, y) {
+      if (active) { active.pressed = ui.contains(active, x, y); }
+    },
+    pointerUp: function (x, y) {
+      var b = active;
+      active = null;
+      if (b) {
+        b.pressed = false;
+        if (ui.contains(b, x, y)) { b.onPress(); }
+      }
+    },
+    pointerCancel: function () {
+      if (active) { active.pressed = false; active = null; }
+    },
+
+    // For tests / debugging.
+    debug: function () { return { progress: progress, clock: clock, index: index }; }
   });
+}());
+
+// ------------------------------------------------------------------ stubs
+// Placeholders until TRANSITION / GAMEOVER / END exist. Tap -> OPTIONS.
+(function () {
+  var cfg = MR.config, C = MR.palette.UI, font = MR.font;
+
+  function stub(title, titleColor, line1, line2, pose) {
+    var params = {};
+    return {
+      enter: function (p) { params = p; },
+      render: function (ctx, w, h) {
+        var cx = Math.round(w / 2), next = cfg.SCENES[params.index + 1];
+        ctx.fillStyle = C.bg;
+        ctx.fillRect(0, 0, w, h);
+        font.drawCentered(ctx, title, cx, 30, titleColor, 3);
+        MR.character.draw(ctx, pose, cx, 150, 2);
+        font.drawCentered(ctx, line1(next), cx, 172, 'white', 1);
+        font.drawCentered(ctx, line2, cx, 186, 'dim', 1);
+        font.drawCentered(ctx, 'TAP TO GO BACK', cx, h - 20, 'white', 1);
+      },
+      pointerUp: function () { MR.states.go('options'); }
+    };
+  }
+
+  MR.states.add('sceneDone', stub('GREAT JOB!', 'yellow',
+    function (next) { return next ? 'NEXT: ' + next.label : 'ALL DONE!'; },
+    'COMING SOON',
+    { outfit: 'ready', eyes: 'happy', mouth: 'open', armR: 'waveUp' }));
+
+  MR.states.add('gameover', stub('TIME\'S UP!', 'white',
+    function () { return 'GAME OVER SCREEN'; },
+    'COMING SOON',
+    { outfit: 'ready', eyes: 'closed', mouth: 'open' }));
 }());

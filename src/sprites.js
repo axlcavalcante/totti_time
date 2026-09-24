@@ -66,7 +66,20 @@ var MR = window.MR = window.MR || {};
     return n;
   }
 
+  // Index of the current frame in a looping list of frame durations (ms).
+  function frameAt(durations, clock) {
+    var total = 0, i, t;
+    for (i = 0; i < durations.length; i++) { total += durations[i]; }
+    t = clock % total;
+    for (i = 0; i < durations.length; i++) {
+      if (t < durations[i]) { return i; }
+      t -= durations[i];
+    }
+    return durations.length - 1;
+  }
+
   MR.sprites = {
+    frameAt: frameAt,
     createCanvas: createCanvas,
     setSmoothing: setSmoothing,
     buildSprite: buildSprite,

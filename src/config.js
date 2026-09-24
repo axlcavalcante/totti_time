@@ -42,6 +42,27 @@ MR.config = {
   RED_ALERT: 0.98,
   FLASH_HZ: 3,           // never above 3 (photosensitivity)
   TRANSITION_MS: 2000,
+  MAX_DT: 100,           // anim clock never jumps more than this per frame (ms)
+
+  // Time bar: color from each threshold of progress upward (MR.palette.UI keys)
+  BAR_COLORS: [
+    [0,    'barGreen'],
+    [0.5,  'barYellow'],
+    [0.8,  'barOrange'],
+    [0.95, 'barRed']
+  ],
+
+  // SCENE layout (native px)
+  SCENE_BAR_H: 10,
+  SCENE_READOUT_H: 9,
+  SCENE_PAD: 4,
+  SCENE_STOP_MAX_H: 90,
+
+  // Per-scene tuning
+  SHOWER: {
+    KID_SCALE: 2,        // kid pixel size inside the 256x224 scene
+    RIM_Y: 150           // top of the bathtub rim
+  },
 
   // Dev checks (palette budget, missing overlays). tools/ pages turn it on.
   DEV: false

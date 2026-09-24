@@ -6,7 +6,8 @@ var MR = window.MR = window.MR || {};
 
   var STYLES = {
     normal: { face: C.btnFace,   pressed: C.btnPressed, light: C.bevelLight, dark: C.bevelDark },
-    start:  { face: C.startFace, pressed: C.startPress, light: C.startLight, dark: C.startDark }
+    start:  { face: C.startFace, pressed: C.startPress, light: C.startLight, dark: C.startDark },
+    stop:   { face: C.stopFace,  pressed: C.stopPress,  light: C.stopLight,  dark: C.stopDark }
   };
 
   // opts: { x, y, w, h, label, style, labelScale, onPress, fireOnDown, repeat }
@@ -83,6 +84,29 @@ var MR = window.MR = window.MR || {};
     ctx.fillRect(x + 1, y + 1, w - 2, 1);
   }
 
+  function barColor(progress) {
+    var list = MR.config.BAR_COLORS, key = list[0][1], i;
+    for (i = 0; i < list.length; i++) { if (progress >= list[i][0]) { key = list[i][1]; } }
+    return C[key];
+  }
+
+  // Time bar: shrinks from right to left as progress goes 0 -> 1.
+  function drawTimeBar(ctx, x, y, w, h, progress) {
+    var fw = Math.round((1 - progress) * (w - 2));
+    ctx.fillStyle = C.bevelDark;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = C.barTrough;
+    ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+    if (fw > 0) {
+      ctx.fillStyle = barColor(progress);
+      ctx.fillRect(x + 1, y + 1, fw, h - 2);
+      ctx.fillStyle = C.bevelDark;           // bottom shade for depth
+      ctx.fillRect(x + 1, y + h - 3, fw, 1);
+    }
+    ctx.fillStyle = C.panelLine;             // trough rim
+    ctx.fillRect(x + 1, y + h - 1, w - 2, 1);
+  }
+
   function pad2(n) { return n < 10 ? '0' + n : String(n); }
 
   function formatTime(sec) {
@@ -97,6 +121,8 @@ var MR = window.MR = window.MR || {};
     hitTest: hitTest,
     drawButton: drawButton,
     drawPanel: drawPanel,
+    drawTimeBar: drawTimeBar,
+    barColor: barColor,
     formatTime: formatTime
   };
 }());

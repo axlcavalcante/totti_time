@@ -34,6 +34,34 @@ var MR = window.MR = window.MR || {};
     for (i = 0; i < arguments.length; i++) { out = out.concat(arguments[i]); }
     return out;
   }
+  // Horizontal flip, for left/right arm pairs.
+  function mirror(data) {
+    var out = [], i;
+    for (i = 0; i < data.length; i++) { out.push(data[i].split('').reverse().join('')); }
+    return out;
+  }
+
+  // Scrubbing arm (screen-left): elbow out, hand on top of the head.
+  // Pivot is the shoulder at the bottom. A/B differ only in the hand so the
+  // two frames read as rubbing.
+  var SCRUB_FOREARM = [
+    '.....kssk....',
+    '....kssk.....',
+    '...kssk......',
+    '..kssk.......',
+    '.kssk........',
+    'kssk.........',
+    'kssk.........',
+    '.kssk........',
+    '.kssk........',
+    '..kssk.......',
+    '..kssk.......',
+    '...kssk......',
+    '...kssk......',
+    '....ksssk....',
+    '.....kkkk....'];
+  var SCRUB_A = rows(['........kkkk.', '.......kssssk', '.......ksssSk', '......kssSkk.'], SCRUB_FOREARM);
+  var SCRUB_B = rows(['......kkkk...', '.....kssssk..', '.....ksssSk..', '......kssk...'], SCRUB_FOREARM);
 
   // ---------------------------------------------------------------- body parts
   var PARTS = {
@@ -50,6 +78,13 @@ var MR = window.MR = window.MR || {};
            'kwWWWk..kWWWWk',
            'kkkkkk..kkkkkk'],
           rep(7, 'ksssSk..ksssSk'))
+      },
+      // Transparent, same rig points: for shots where the legs are out of
+      // frame (bath, close-ups). Keeps the rig root and ground anchor.
+      hidden: {
+        pivot: [7, 0],
+        points: { hips: [7, 0], feet: [0, 13], ground: [7, 16] },
+        data: rep(13, '..............')
       }
     },
 
@@ -76,6 +111,22 @@ var MR = window.MR = window.MR || {};
           ['kwwwwwwwwwWWWk',
            'kWWWWWWWWWWWWk',
            'kkkkkkkkkkkkkk'])
+      },
+      // Bath/shower: ONLY neck and shoulders exist; every row below is
+      // transparent, so nothing more can ever show (modesty rule). The scene
+      // must still hide row 5 and below behind the tub.
+      bath: {
+        pivot: [7, 12],
+        points: { neck: [7, 0], shoulderL: [0, 2], shoulderR: [13, 2] },
+        data: rows(
+          ['.....kssk.....',
+           '..kkssssSSkk..',
+           '.kssssssssSSk.',
+           'ksssssssssSSSk',
+           'ksssssssssSSSk',
+           'ksssssssssSSSk',
+           'ksssssssssSSSk'],
+          rep(6, '..............'))
       }
     },
 
@@ -84,7 +135,10 @@ var MR = window.MR = window.MR || {};
       down: {
         pivot: [3, 0],
         data: rows(['..kk', '.ksk'], rep(8, 'kssk'), ['ksSk', 'kssk', '.kk.'])
-      }
+      },
+      // Draw these with ORDER_ARMS_FRONT so the hands sit on the hair.
+      scrubA: { pivot: [6, 18], data: SCRUB_A },
+      scrubB: { pivot: [6, 18], data: SCRUB_B }
     },
 
     // Screen-right arm, front view.
@@ -119,14 +173,17 @@ var MR = window.MR = window.MR || {};
                'kssk....',
                'kssk....',
                'kkk.....']
-      }
+      },
+      scrubA: { pivot: [6, 18], data: mirror(SCRUB_A) },
+      scrubB: { pivot: [6, 18], data: mirror(SCRUB_B) }
     },
 
     head: {
       // 16x15, face with ears and rosy cheeks. Eyes/mouth/hair are separate.
       base: {
         pivot: [8, 15],
-        points: { eyes: [5, 7], mouth: [6, 11], crown: [0, 0] },
+        // crown = hair attach (top-left); top = top-center, for scene props
+        points: { eyes: [5, 7], mouth: [6, 11], crown: [0, 0], top: [8, 0] },
         data: rows(
           ['....kkkkkkkk....',
            '...kssssssssk...'],
@@ -145,11 +202,14 @@ var MR = window.MR = window.MR || {};
 
     eyes: {
       open:   { pivot: [0, 0], data: ['wk..wk', 'kk..kk', 'kk..kk'] },
-      closed: { pivot: [0, 0], data: ['......', 'kk..kk', '......'] }
+      closed: { pivot: [0, 0], data: ['......', 'kk..kk', '......'] },
+      // ^ ^ (8 wide, so pivot shifts one px left to stay centered)
+      happy:  { pivot: [1, 0], data: ['.k....k.', 'k.k..k.k', '........'] }
     },
 
     mouth: {
-      smile: { pivot: [0, 0], data: ['k..k', '.kk.'] }
+      smile: { pivot: [0, 0], data: ['k..k', '.kk.'] },
+      open:  { pivot: [0, 0], data: ['kkkk', 'kddk', '.kk.'] }
     },
 
     hair: {
@@ -165,6 +225,19 @@ var MR = window.MR = window.MR || {};
                'khHHhhHhhHHHbbbk',
                'kHb.HHb.HHb.Hbbk',
                'kbk.bk..kb..kbbk']
+      },
+      // Wet: darker (golden/brown), flattened, strands and drips.
+      wet: {
+        pivot: [0, 3],
+        data: ['................',
+               '....kkkkkkkk....',
+               '..kkHHHHhhHHkk..',
+               '.kHHHHHhhHHHHbk.',
+               '.kHHHHHHHHHHbbk.',
+               'kbHHHHHHHHHHbbbk',
+               'kbHbHHbHHbHHbbbk',
+               'kbk.bHk.kbHk.bbk',
+               '..k..k...k...k..']
       }
     }
   };
@@ -243,8 +316,12 @@ var MR = window.MR = window.MR || {};
 
   // Front view. A pose may pass its own `order` (e.g. side views).
   var DRAW_ORDER = ['legs', 'feet', 'torso', 'armL', 'armR', 'head', 'eyes', 'mouth', 'hair'];
+  // Hands in front of the head (scrubbing hair, hands on face...).
+  var ORDER_ARMS_FRONT = ['legs', 'feet', 'torso', 'head', 'eyes', 'mouth', 'hair', 'armL', 'armR'];
 
   var OUTFITS = {
+    // Shower/bath: no clothes; use with torso 'bath', legs 'hidden', feet null.
+    bath:      { clothes: [],                                  colors: 'default' },
     underwear: { clothes: [],                                  colors: 'default' },
     dressed:   { clothes: ['tshirt', 'pants', 'socks'],        colors: 'default' },
     ready:     { clothes: ['tshirt', 'pants', 'socks', 'shoes'], colors: 'default' }
@@ -299,18 +376,21 @@ var MR = window.MR = window.MR || {};
     return out;
   }
 
-  // Composes a pose into one canvas. Returns { canvas, ax, ay } where
-  // (ax, ay) is the ground point (between the feet) inside the canvas.
+  // Composes a pose into one canvas. Returns { canvas, ax, ay, points } where
+  // (ax, ay) is the ground point (between the feet) inside the canvas and
+  // points['slot.name'] = [x, y] is every attach point, for anchoring props.
+  // A slot set to null in the pose is skipped along with its children.
   function bake(pose) {
     var p = normalize(pose), key = JSON.stringify(p), cached = bakeCache[key];
     var placed = {}, layers = [], order, i, j, r, part, parent, attach, off, x, y,
       clothes, item, overlay, minX = 9999, minY = 9999, maxX = -9999, maxY = -9999,
-      canvas, ground, l;
+      canvas, ground, l, pts, name;
     if (cached) { return cached; }
 
     // 1. Place every part: its top-left = parent point - own pivot + offset.
     for (i = 0; i < RIG.length; i++) {
       r = RIG[i];
+      if (p[r.slot] === null) { continue; }
       part = PARTS[r.slot][p[r.slot]];
       if (!part) { warn('no part ' + r.slot + '.' + p[r.slot]); continue; }
       if (r.parent) {
@@ -368,12 +448,19 @@ var MR = window.MR = window.MR || {};
     for (i = 0; i < layers.length; i++) { layers[i].x -= minX; layers[i].y -= minY; }
     canvas = MR.sprites.compose(maxX - minX, maxY - minY, layers);
 
-    ground = PARTS.legs[p.legs].points.ground;
-    cached = {
-      canvas: canvas,
-      ax: placed.legs.x + ground[0] - minX,
-      ay: placed.legs.y + ground[1] - minY
-    };
+    pts = {};
+    for (i = 0; i < RIG.length; i++) {
+      r = placed[RIG[i].slot];
+      if (!r || !r.part.points) { continue; }
+      for (name in r.part.points) {
+        if (r.part.points.hasOwnProperty(name)) {
+          pts[RIG[i].slot + '.' + name] = [r.x + r.part.points[name][0] - minX,
+            r.y + r.part.points[name][1] - minY];
+        }
+      }
+    }
+    ground = pts['legs.ground'];
+    cached = { canvas: canvas, ax: ground[0], ay: ground[1], points: pts };
 
     if (MR.config.DEV && MR.sprites.countColors(canvas) > 15) {
       warn('pose uses more than 15 colors: ' + key);
@@ -395,6 +482,7 @@ var MR = window.MR = window.MR || {};
     OUTFITS: OUTFITS,
     RIG: RIG,
     DRAW_ORDER: DRAW_ORDER,
+    ORDER_ARMS_FRONT: ORDER_ARMS_FRONT,
     DEFAULT_POSE: DEFAULT_POSE,
     bake: bake,
     draw: draw
