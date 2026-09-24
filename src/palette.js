@@ -229,6 +229,28 @@ var MR = window.MR = window.MR || {};
       })
     },
 
+    // Window sky (MR.weather): gradient bands top -> bottom per time of day,
+    // grey versions for bad weather, plus sun/moon/clouds/rain/snow colors.
+    SKY: {
+      bands: {
+        night: [[0, 0, 36], [0, 0, 73], [0, 36, 73]],
+        dawn: [[36, 36, 109], [109, 73, 146], [219, 109, 146], [255, 146, 73], [255, 219, 109]],
+        day: [[73, 146, 255], [109, 182, 255], [146, 219, 255]],
+        dusk: [[36, 36, 109], [146, 73, 146], [219, 73, 109], [255, 109, 36], [255, 182, 73]]
+      },
+      grey: {
+        night: [[0, 0, 36], [36, 36, 73], [73, 73, 109]],
+        dawn: [[73, 73, 109], [146, 109, 146], [182, 146, 146]],
+        day: [[109, 109, 146], [146, 146, 182], [182, 182, 219]],
+        dusk: [[73, 73, 109], [146, 109, 146], [182, 146, 146]]
+      },
+      c: makeMap({
+        sun: [255, 255, 109], sunEdge: [255, 182, 36], moon: [255, 255, 182], star: [255, 255, 219],
+        cloud: [255, 255, 255], cloudShade: [182, 182, 219], dark: [109, 109, 146], darkShade: [73, 73, 109],
+        rain: [182, 219, 255], snow: [255, 255, 255], fog: [219, 219, 219], flash: [255, 255, 255]
+      })
+    },
+
     // Red alert: luminance -> red ramp (dark to light), used by
     // MR.sprites.makeRed (pre-rendered at init) and toRed (single colors).
     RED_RAMP: [[0, 0, 0], [73, 0, 0], [146, 0, 36], [219, 36, 36], [255, 109, 109], [255, 219, 219]]

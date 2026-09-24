@@ -217,6 +217,7 @@ MR.now = (window.performance && window.performance.now) ?
     bctx = buffer.getContext('2d');
 
     MR.font.init();
+    if (MR.weather) { MR.weather.start(); }     // optional live sky; never blocks
 
     canvas.addEventListener('touchstart', onTouchStart, false);
     canvas.addEventListener('touchmove', onTouchMove, false);

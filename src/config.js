@@ -67,6 +67,15 @@ MR.config = {
   SCENE_PAD: 4,
   SCENE_STOP_MAX_H: 90,
 
+  // Live sky in the bedroom window (optional; see src/weather.js)
+  WEATHER: {
+    CITY: 'LOCMARIAQUER',
+    LAT: 47.5697,
+    LON: -2.9458,
+    REFRESH_MIN: 30,
+    TIMEOUT_MS: 6000
+  },
+
   // GREAT JOB screen: shown after STOP, then the next scene starts by itself
   GREAT_JOB_MS: 6000,
 

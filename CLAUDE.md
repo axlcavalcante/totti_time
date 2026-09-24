@@ -42,6 +42,7 @@ No modules exist, so files are loaded with plain `<script>` tags **in dependency
 index.html          // canvas + script tags, minimal CSS
 src/config.js       // scene list, labels, default durations, tuning constants
 src/palette.js      // Mega Drive palette, color ramps, red-alert palette mapping
+src/weather.js      // optional live sky (Open-Meteo), local sun math fallback
 src/font.js         // bitmap pixel font (drawn from data, no web fonts)
 src/sprites.js      // sprite data format + pre-render/cache utilities
 src/character.js    // THE kid: all body parts, expressions, outfits (reused everywhere)
@@ -56,6 +57,8 @@ src/main.js         // boot, resize, main loop
 ```
 
 The game must run when `index.html` is served over plain HTTP (local network server or static hosting). Don't rely on anything that needs a backend.
+
+**Optional live sky (`src/weather.js`):** the bedroom window shows the real sky of Locmariaquer (`config.WEATHER`), meaning the current weather and time of day, from **Open-Meteo** (free, no API key). It uses `XMLHttpRequest` only (no `fetch`/`Promise`), tries https and then http (old KitKat devices may reject modern certificates), and has a 6 s timeout. The result is cached in `localStorage` and refreshed every 30 min. It **never blocks the game**: offline, sunrise and sunset are computed locally (NOAA equation) and the weather defaults to partly cloudy. Only the fixed city coordinates are sent. The sky canvas is rebuilt only when the look changes, never per frame. Dev override for testing: `?sky=rain&tod=dawn` (kinds: clear, partly, overcast, fog, rain, snow, storm; phases: night, dawn, day, dusk).
 
 ## Screen layout
 
