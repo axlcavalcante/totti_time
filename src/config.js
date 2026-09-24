@@ -67,6 +67,13 @@ MR.config = {
   SCENE_PAD: 4,
   SCENE_STOP_MAX_H: 90,
 
+  // GAME OVER screen
+  GAMEOVER: {
+    KID_SCALE: 4,        // the same kid, drawn bigger (shrinks to 3/2 if short)
+    TEAR_PERIOD: 900,    // one tear per eye per period (right eye offset half)
+    CONTINUE_AT: 1500    // CONTINUE appears (and becomes tappable) after this
+  },
+
   // Per-scene tuning
   SHOWER: {
     KID_SCALE: 2,        // kid pixel size inside the 256x224 scene

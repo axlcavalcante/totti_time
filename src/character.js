@@ -236,13 +236,20 @@ var MR = window.MR = window.MR || {};
       // ^ ^ (8 wide, so pivot shifts one px left to stay centered)
       happy:  { pivot: [1, 0], data: ['.k....k.', 'k.k..k.k', '........'] },
       // wide-open, small pupils: red alert / time almost up
-      worried: { pivot: [1, 0], data: ['kkk..kkk', 'wkw..wkw', '.w....w.'] }
+      worried: { pivot: [1, 0], data: ['kkk..kkk', 'wkw..wkw', '.w....w.'] },
+      // crying: sad brows (inner ends raised, "/ \") above ">  <" eyes shut
+      // tight; B is the flatter sob frame. Pivot [1, 1]: brows sit one row up.
+      cryA: { pivot: [1, 1], data: ['..k..k..', 'kk....kk', '..k..k..', 'kk....kk'] },
+      cryB: { pivot: [1, 1], data: ['..k..k..', '........', 'kkk..kkk', '........'] }
     },
 
     mouth: {
       smile: { pivot: [0, 0], data: ['k..k', '.kk.'] },
       open:  { pivot: [0, 0], data: ['kkkk', 'kddk', '.kk.'] },
-      worried: { pivot: [0, 0], data: ['.kk.', 'kddk', '.kk.'] }
+      worried: { pivot: [0, 0], data: ['.kk.', 'kddk', '.kk.'] },
+      // crying wail (wide open, tongue) and a smaller trembling frame
+      wailA: { pivot: [1, 0], data: ['.kkkk.', 'kddddk', '.kcck.'] },
+      wailB: { pivot: [1, 0], data: ['......', '.kkkk.', '.kddk.'] }
     },
 
     hair: {

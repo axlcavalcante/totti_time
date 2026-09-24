@@ -122,6 +122,23 @@ var MR = window.MR = window.MR || {};
       shadow: snap(73, 36, 109)
     },
 
+    // "GAME OVER" lettering: same shape as TITLE, red ramp.
+    TITLE_RED: {
+      ramp: [snap(255, 182, 182), snap(255, 73, 73), snap(219, 0, 0), snap(146, 0, 36)],
+      shine: [snap(255, 255, 255), snap(255, 219, 219), snap(255, 146, 146), snap(255, 73, 73)],
+      highlight: snap(255, 255, 255),
+      outline: snap(0, 0, 36),
+      shadow: snap(36, 0, 36)
+    },
+
+    // Shared effect colors (tears, water drops): q light, Q mid, j deep.
+    FX: makeMap({
+      q: [182, 219, 255],
+      Q: [109, 182, 255],
+      j: [73, 146, 219],
+      w: [255, 255, 255]
+    }),
+
     // SHOWER scene. Each map is one Mega Drive palette line (<= 15 colors).
     SHOWER: {
       // walls, floor, tub, chrome

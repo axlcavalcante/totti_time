@@ -835,22 +835,212 @@ var MR = window.MR = window.MR || {};
   });
 }());
 
-// ------------------------------------------------------------------ stubs
-// Placeholder until the GAMEOVER screen exists. Tap -> OPTIONS.
+// ------------------------------------------------------------------ GAME OVER
+// Time ran out before STOP. The same kid (bigger) cries: sad brows, eyes shut
+// tight, wailing, sobbing dips, and tears that well up in the corners of his
+// eyes, roll down his cheeks and drip off his chin. CONTINUE (after CONTINUE_AT) goes to
+// the next scene's title card so the routine is never blocked.
 (function () {
-  var C = MR.palette.UI, font = MR.font;
+  var cfg = MR.config, G = cfg.GAMEOVER, C = MR.palette.UI, ui = MR.ui, font = MR.font,
+    title = MR.font.title, FX = MR.palette.FX;
+  var params = {}, t0 = 0, L = null, bg = null, active = null, scale = 3;
+  var BAR_H = 16, SOB_MS = 225, WELL_MS = 400, TEAR_LIFE = 2200;
+  var continueBtn = ui.button({ label: 'CONTINUE', onPress: next });
+
+  // tears (kid pixels, drawn at the kid's scale)
+  var TEAR = {
+    bead: MR.sprites.buildSprite(['q'], FX),
+    small: MR.sprites.buildSprite(['.q.', 'qwq', '.q.'], FX),
+    drop: MR.sprites.buildSprite(['.q.', 'qwq', 'qQq', '.j.'], FX)
+  };
+
+  // 4 sob steps per loop: wail/tremble x eyes shut/sob, body dips on 2 of them
+  var STEPS = [
+    { eyes: 'cryA', mouth: 'wailA', dip: false },
+    { eyes: 'cryA', mouth: 'wailB', dip: true },
+    { eyes: 'cryB', mouth: 'wailA', dip: false },
+    { eyes: 'cryB', mouth: 'wailB', dip: true }
+  ];
+  var i;
+  for (i = 0; i < STEPS.length; i++) {
+    STEPS[i].pose = {
+      outfit: 'ready', eyes: STEPS[i].eyes, mouth: STEPS[i].mouth,
+      offsets: STEPS[i].dip ? { torso: [0, 1] } : null
+    };
+  }
+
+  function next() {
+    var n = params.index + 1;
+    if (n < cfg.SCENES.length) { MR.states.go('transition', { index: n, durations: params.durations }); }
+    else { MR.states.go('options'); }
+  }
+
+  function easeOutBounce(k) {
+    var n1 = 7.5625, d1 = 2.75;
+    if (k < 1 / d1) { return n1 * k * k; }
+    if (k < 2 / d1) { k -= 1.5 / d1; return n1 * k * k + 0.75; }
+    if (k < 2.5 / d1) { k -= 2.25 / d1; return n1 * k * k + 0.9375; }
+    k -= 2.625 / d1;
+    return n1 * k * k + 0.984375;
+  }
+
+  // Background: navy with a soft dithered spotlight behind the kid.
+  function buildBg(w, h, cx, cy, r) {
+    var c = MR.sprites.createCanvas(w, h), ctx = c.getContext('2d'), x, y, d;
+    ctx.fillStyle = C.bevelDark;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = C.bg;
+    for (y = Math.max(0, cy - r); y < Math.min(h, cy + r); y++) {
+      for (x = Math.max(0, cx - r); x < Math.min(w, cx + r); x++) {
+        d = ((x - cx) * (x - cx) + (y - cy) * (y - cy)) / (r * r);
+        if (d < 0.55 || (d < 0.8 && (x + y) % 2 === 0) || (d < 1 && x % 2 === 0 && y % 2 === 0)) {
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+    ctx.fillStyle = C.panel;                            // brighter core
+    for (y = Math.max(0, cy - r); y < Math.min(h, cy + r); y++) {
+      for (x = Math.max(0, cx - r); x < Math.min(w, cx + r); x++) {
+        d = ((x - cx) * (x - cx) + (y - cy) * (y - cy)) / (r * r);
+        if (d < 0.25 || (d < 0.4 && (x + y) % 2 === 0)) { ctx.fillRect(x, y, 1, 1); }
+      }
+    }
+    return c;
+  }
+
+  function layout(w, h, metrics) {
+    var b = MR.character.bake(STEPS[0].pose), btnH = Math.max(metrics.minTouch + 8, 36),
+      top, bottom, kh;
+    L = { w: w, h: h };
+    L.titleCap = BAR_H + 14;
+    L.btnY = h - BAR_H - 8 - btnH;
+    ui.setRect(continueBtn, 8, L.btnY, w - 16, btnH);
+    continueBtn.labelScale = btnH >= 40 ? 3 : 2;
+    top = L.titleCap + title.capH('L') + 30;
+    bottom = L.btnY - 22;                                // "TIME'S UP..." line
+    // largest scale up to KID_SCALE that fits between the title and the button
+    for (scale = G.KID_SCALE; scale > 2 && b.canvas.height * scale > bottom - top; scale--) { /* shrink */ }
+    kh = b.canvas.height * scale;
+    L.groundY = Math.round(top + (bottom - top + kh) / 2);
+    L.textY = L.groundY + 8;
+    L.cx = Math.round(w / 2);
+    bg = buildBg(w, h, L.cx, L.groundY - Math.round(kh * 0.62), Math.round(kh * 0.62));
+  }
+
+  // Screen position of a kid-pixel point in the drawn pose.
+  function kidPoint(b, p) {
+    return [L.cx - b.ax * scale + p[0] * scale, L.groundY - b.ay * scale + p[1] * scale];
+  }
+
+  // One tear's life: wells up gently at the eye corner, then rolls down the
+  // cheek (slowly speeding up) and drips off below the chin.
+  function drawTear(ctx, corner, chinY, age) {
+    var img, y, tt, ts = Math.max(1, Math.round(scale / 2));   // tears at half the kid's scale
+    if (age < WELL_MS) {
+      img = age < 130 ? TEAR.bead : (age < 260 ? TEAR.small : TEAR.drop);
+      ctx.drawImage(img, Math.round(corner[0] - img.width * ts / 2), Math.round(corner[1] - img.height * ts / 3),
+        img.width * ts, img.height * ts);
+      return;
+    }
+    tt = age - WELL_MS;
+    y = corner[1] + 0.02 * tt + 0.5 * 0.00008 * tt * tt;
+    if (y > chinY + 8 * scale) { return; }             // dripped onto the shirt
+    img = TEAR.drop;
+    ctx.drawImage(img, Math.round(corner[0] - img.width * ts / 2), Math.round(y), img.width * ts, img.height * ts);
+  }
+
+  function drawTears(ctx, t, corner, chinY, offset) {
+    var P = G.TEAR_PERIOD, k = Math.floor((t - offset) / P), j, age;
+    for (j = k; j >= k - 3; j--) {
+      age = t - (j * P + offset);
+      if (j >= 0 && age >= 0 && age < TEAR_LIFE) { drawTear(ctx, corner, chinY, age); }
+    }
+  }
+
+  // wet trails running down the cheeks, with moving dashes
+  function drawTrail(ctx, corner, t) {
+    var len = 4 * scale, y, phase = Math.floor(t / 90);
+    ctx.fillStyle = FX.q;
+    for (y = 0; y < len; y += scale) {
+      if ((y / scale + phase) % 3 !== 0) {
+        ctx.fillRect(Math.round(corner[0] - scale / 2), Math.round(corner[1] + scale + y), scale, scale);
+      }
+    }
+  }
+
+  function render(ctx, w, h) {
+    var t = MR.now() - t0, st = STEPS[Math.floor(t / SOB_MS) % STEPS.length], b, eyes, tl, tr, k, dy, chinY;
+    if (!L) { return; }
+    ctx.drawImage(bg, 0, 0);
+
+    // GAME OVER: red title letters thud in one by one
+    title.draw(ctx, 'GAME OVER', Math.round((w - title.measure('GAME OVER', 'L')) / 2), L.titleCap, 'L',
+      function (j) {
+        var start = 300 + j * 110, kk;
+        if (t < start) { return { hidden: true }; }
+        kk = Math.min(1, (t - start) / 450);
+        return { dy: -(1 - easeOutBounce(kk)) * 50 };
+      }, 'red');
+
+    // the kid, crying
+    MR.character.draw(ctx, st.pose, L.cx, L.groundY, scale);
+    b = MR.character.bake(st.pose);
+    eyes = b.points['head.eyes'];
+    tl = kidPoint(b, [eyes[0] - 2, eyes[1] + 2]);      // outer eye corners
+    tr = kidPoint(b, [eyes[0] + 7, eyes[1] + 2]);
+    drawTrail(ctx, tl, t);
+    drawTrail(ctx, tr, t + 45);
+    chinY = kidPoint(b, b.points['head.mouth'])[1] + 3 * scale;
+    drawTears(ctx, t, tl, chinY, 0);
+    drawTears(ctx, t, tr, chinY, G.TEAR_PERIOD / 2);
+
+    font.drawCentered(ctx, 'TIME\'S UP...', L.cx, L.textY, 'dim', 1);
+
+    // CONTINUE slides up once it becomes available
+    if (t >= G.CONTINUE_AT) {
+      k = Math.min(1, (t - G.CONTINUE_AT) / 300);
+      dy = Math.round((1 - k) * 20);
+      continueBtn.y = L.btnY + dy;
+      ui.drawButton(ctx, continueBtn);
+      continueBtn.y = L.btnY;
+    }
+
+    // letterbox
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, BAR_H);
+    ctx.fillRect(0, h - BAR_H, w, BAR_H);
+  }
+
+  function ready() { return MR.now() - t0 >= G.CONTINUE_AT; }
 
   MR.states.add('gameover', {
-    render: function (ctx, w, h) {
-      var cx = Math.round(w / 2);
-      ctx.fillStyle = C.bg;
-      ctx.fillRect(0, 0, w, h);
-      font.drawCentered(ctx, 'TIME\'S UP!', cx, 30, 'white', 3);
-      MR.character.draw(ctx, { outfit: 'ready', eyes: 'closed', mouth: 'open' }, cx, 150, 2);
-      font.drawCentered(ctx, 'GAME OVER SCREEN', cx, 172, 'white', 1);
-      font.drawCentered(ctx, 'COMING SOON', cx, 186, 'dim', 1);
-      font.drawCentered(ctx, 'TAP TO GO BACK', cx, h - 20, 'white', 1);
+    enter: function (p, now) {
+      var j;
+      params = p;
+      t0 = now;
+      active = null;
+      continueBtn.pressed = false;
+      for (j = 0; j < STEPS.length; j++) { MR.character.bake(STEPS[j].pose); }   // pre-bake
     },
-    pointerUp: function () { MR.states.go('options'); }
+    layout: layout,
+    update: function () { MR.states.invalidate(); },
+    render: render,
+    pointerDown: function (x, y) {
+      if (ready() && ui.contains(continueBtn, x, y)) { active = continueBtn; continueBtn.pressed = true; }
+    },
+    pointerMove: function (x, y) {
+      if (active) { active.pressed = ui.contains(active, x, y); }
+    },
+    pointerUp: function (x, y) {
+      var b = active;
+      active = null;
+      if (b) {
+        b.pressed = false;
+        if (ui.contains(b, x, y)) { b.onPress(); }
+      }
+    },
+    pointerCancel: function () {
+      if (active) { active.pressed = false; active = null; }
+    }
   });
 }());
