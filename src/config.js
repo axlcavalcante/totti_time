@@ -37,7 +37,7 @@ MR.config = {
   IDLE_WAVE_CYCLES: 3,
 
   // Scene playback (future tasks)
-  MAX_SPEED: 3,
+  MAX_SPEED: 3.3,
   SPEED_RAMP_START: 0.5,
   RED_ALERT: 0.98,
   FLASH_HZ: 3,           // never above 3 (photosensitivity)
