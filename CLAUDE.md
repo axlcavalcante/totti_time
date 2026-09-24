@@ -75,9 +75,10 @@ OPTIONS -> TRANSITION(1) -> SCENE(1) --STOP--> TRANSITION(2) -> SCENE(2) ... SCE
 ```
 
 - **OPTIONS:** Five rows, one per scene, each with its label and `[-] mm:ss [+]` buttons. There is no text input, to avoid the Android keyboard. The step is 30 s and the range is 30 s–20 min. Values are saved to `localStorage` (inside try/catch) and restored on the next launch. A big START button is at the bottom.
-- **TRANSITION:** A ~2 s title card announcing the next scene's name, in a Flashback-style cinematic look (for example, letterbox bars sliding in, the name typed out letter by letter, then a wipe into the scene). **The timer does not run during transitions.**
+- **TRANSITION:** A stand-alone ~4 s title card (`TRANSITION_MS`) shown *before* the scene, full screen with no time bar or STOP. Letterbox bars slide in, "SCENE n/5" types out, the scene's French `title` from `config.js` (e.g. "L'HEURE DU BAIN") drops in letter by letter in the title font (`MR.font.title`: gradient, outline and shadow, derived from the UI glyphs), an underline grows, a shine sweeps across, then the bars close and the scene starts. **The timer does not run during transitions.** Taps are ignored.
 - **SCENE:** The looping animation, time bar and STOP button. The timer starts when the transition ends.
 - **GAMEOVER:** Shown when time reaches 0 before STOP is pressed. It displays a close-up of the kid **crying**, with clearly animated tears welling up and dropping from the eyes in a loop, and big "GAME OVER" text over it. A CONTINUE button goes to the next scene so the routine isn't blocked.
+- **GREAT JOB (`sceneDone`):** After STOP, the kid jumps with both arms up, lands and claps under falling confetti.
 - **END:** A short "ALL DONE!" celebration with the kid happy, then a tap returns to OPTIONS.
 
 ## Timer logic

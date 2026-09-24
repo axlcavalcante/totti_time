@@ -113,6 +113,15 @@ var MR = window.MR = window.MR || {};
       })
     },
 
+    // Title-card lettering (MR.font.title): top -> bottom ramp, shine ramp.
+    TITLE: {
+      ramp: [snap(255, 255, 182), snap(255, 219, 36), snap(255, 146, 0), snap(219, 73, 0)],
+      shine: [snap(255, 255, 255), snap(255, 255, 219), snap(255, 255, 146), snap(255, 219, 73)],
+      highlight: snap(255, 255, 255),
+      outline: snap(0, 0, 36),
+      shadow: snap(73, 36, 109)
+    },
+
     // SHOWER scene. Each map is one Mega Drive palette line (<= 15 colors).
     SHOWER: {
       // walls, floor, tub, chrome
