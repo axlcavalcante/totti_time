@@ -63,6 +63,55 @@ var MR = window.MR = window.MR || {};
   var SCRUB_A = rows(['........kkkk.', '.......kssssk', '.......ksssSk', '......kssSkk.'], SCRUB_FOREARM);
   var SCRUB_B = rows(['......kkkk...', '.....kssssk..', '.....ksssSk..', '......kssk...'], SCRUB_FOREARM);
 
+  // Clapping (screen-left arm): upper arm down the side, forearm up to the
+  // chest. Pivot = shoulder at the top. Closed: hands meet at the center.
+  var CLAP_OPEN = [
+    '.kk......',
+    'kssk.kk..',
+    'ksskkssk.',
+    'ksskkssk.',
+    'ksskkssk.',
+    'kssksssk.',
+    'ksssssk..',
+    'kssssk...',
+    '.kkkk....'];
+  var CLAP_CLOSED = [
+    '.kk......',
+    'kssk.....',
+    'kssk..kkk',
+    'kssk.kssk',
+    'kssk.kssk',
+    'ksskkssk.',
+    'ksssssk..',
+    'kssssk...',
+    '.kkkk....'];
+  // Raised arm (screen-right), shared with the wave; mirrored for the left.
+  var WAVE_UP = rows(
+    ['..kkkk.',
+     '.kssssk',
+     '.ksssSk',
+     '..kssk.',
+     '..kssk.',
+     '.kssk..',
+     '.kssk..'],
+    rep(6, 'kssk...'),
+    ['kkk....']);
+  var WAVE_MID = [
+    '....kkk.',
+    '...kssSk',
+    '...kssSk',
+    '...kssk.',
+    '..kssk..',
+    '..kssk..',
+    '.kssk...',
+    '.kssk...',
+    'kssk....',
+    'kssk....',
+    'kkk.....'];
+  var SLEEVE_CLAP = rows(['.kk......', 'kaak.....', 'kaAk.....', 'kkkk.....'], rep(5, '.........'));
+  var SLEEVE_WAVE_UP = rows(rep(10, '.......'), ['kkkk...', 'kaAk...', 'kaAk...', 'kkk....']);
+  var SLEEVE_WAVE_MID = rows(rep(7, '........'), ['.kkkk...', 'kaAk....', 'kaAk....', 'kkk.....']);
+
   // ---------------------------------------------------------------- body parts
   var PARTS = {
     legs: {
@@ -138,7 +187,11 @@ var MR = window.MR = window.MR || {};
       },
       // Draw these with ORDER_ARMS_FRONT so the hands sit on the hair.
       scrubA: { pivot: [6, 18], data: SCRUB_A },
-      scrubB: { pivot: [6, 18], data: SCRUB_B }
+      scrubB: { pivot: [6, 18], data: SCRUB_B },
+      waveUp: { pivot: [6, 13], data: mirror(WAVE_UP) },
+      waveMid: { pivot: [7, 10], data: mirror(WAVE_MID) },
+      clapOpen: { pivot: [2, 0], data: CLAP_OPEN },
+      clapClosed: { pivot: [2, 0], data: CLAP_CLOSED }
     },
 
     // Screen-right arm, front view.
@@ -147,33 +200,10 @@ var MR = window.MR = window.MR || {};
         pivot: [0, 0],
         data: rows(['kk..', 'ksk.'], rep(8, 'ksSk'), ['ksSk', 'kssk', '.kk.'])
       },
-      waveUp: {
-        pivot: [0, 13],
-        data: rows(
-          ['..kkkk.',
-           '.kssssk',
-           '.ksssSk',
-           '..kssk.',
-           '..kssk.',
-           '.kssk..',
-           '.kssk..'],
-          rep(6, 'kssk...'),
-          ['kkk....'])
-      },
-      waveMid: {
-        pivot: [0, 10],
-        data: ['....kkk.',
-               '...kssSk',
-               '...kssSk',
-               '...kssk.',
-               '..kssk..',
-               '..kssk..',
-               '.kssk...',
-               '.kssk...',
-               'kssk....',
-               'kssk....',
-               'kkk.....']
-      },
+      waveUp: { pivot: [0, 13], data: WAVE_UP },
+      waveMid: { pivot: [0, 10], data: WAVE_MID },
+      clapOpen: { pivot: [6, 0], data: mirror(CLAP_OPEN) },
+      clapClosed: { pivot: [6, 0], data: mirror(CLAP_CLOSED) },
       scrubA: { pivot: [6, 18], data: mirror(SCRUB_A) },
       scrubB: { pivot: [6, 18], data: mirror(SCRUB_B) }
     },
@@ -262,12 +292,18 @@ var MR = window.MR = window.MR || {};
            'kkkkkkkkkkkkkk'])
       },
       armL: {
-        down: rows(['..kk', '.kak', 'kaak', 'kAak', 'kkkk'], rep(8, '....'))
+        down: rows(['..kk', '.kak', 'kaak', 'kAak', 'kkkk'], rep(8, '....')),
+        waveUp: mirror(SLEEVE_WAVE_UP),
+        waveMid: mirror(SLEEVE_WAVE_MID),
+        clapOpen: SLEEVE_CLAP,
+        clapClosed: SLEEVE_CLAP
       },
       armR: {
         down: rows(['kk..', 'kak.', 'kaAk', 'kaAk', 'kkkk'], rep(8, '....')),
-        waveUp: rows(rep(10, '.......'), ['kkkk...', 'kaAk...', 'kaAk...', 'kkk....']),
-        waveMid: rows(rep(7, '........'), ['.kkkk...', 'kaAk....', 'kaAk....', 'kkk.....'])
+        waveUp: SLEEVE_WAVE_UP,
+        waveMid: SLEEVE_WAVE_MID,
+        clapOpen: mirror(SLEEVE_CLAP),
+        clapClosed: mirror(SLEEVE_CLAP)
       }
     },
 

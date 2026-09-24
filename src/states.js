@@ -214,7 +214,7 @@ var MR = window.MR = window.MR || {};
       label: 'START', style: 'start',
       onPress: function () {
         MR.settings.save(durations);
-        MR.states.go('scene', { index: 0, durations: durations.slice() });
+        MR.states.go('transition', { index: 0, durations: durations.slice() });
       }
     });
     buttons.push(startBtn);
@@ -402,10 +402,145 @@ var MR = window.MR = window.MR || {};
   });
 }());
 
+// ------------------------------------------------------------------ TRANSITION
+// Stand-alone title card before each scene (TRANSITION_MS, ~4 s). The timer
+// is not running. Letterbox bars slide in, "SCENE n/5" types out, the title
+// letters drop in one by one with a bounce, an underline grows, a shine
+// sweeps across, then the bars close to black and the scene starts.
+(function () {
+  var cfg = MR.config, C = MR.palette.UI, font = MR.font, title = MR.font.title;
+  var params = {}, t0 = 0, L = null, bg = null, done = false;
+  var info = null;          // { size, lines, x[], capY[], count, lineH }
+
+  var BAR_H = 28, BARS_MS = 400, SUB_AT = 300, SUB_MS = 45,
+    DROP_AT = 600, DROP_STEP = 90, DROP_MS = 350, DROP_H = 40,
+    LINE_MS = 400, SHINE_MIN_AT = 2650, SHINE_MS = 750, CLOSE_AT = 3400;
+
+  function easeOutBack(k) {
+    var c1 = 1.70158, c3 = c1 + 1;
+    return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2);
+  }
+  function easeInOut(k) { return k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; }
+
+  // Pre-rendered background: navy with subtle darker scanline bands.
+  function buildBg(w, h) {
+    var c = MR.sprites.createCanvas(w, h), ctx = c.getContext('2d'), y;
+    ctx.fillStyle = C.bg;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = C.bevelDark;
+    for (y = 0; y < h; y += 4) { ctx.fillRect(0, y, w, 1); }
+    return c;
+  }
+
+  function prepare() {
+    var t = cfg.SCENES[params.index].title || cfg.SCENES[params.index].label,
+      lay = title.layout(t, L.w - 8), capH = title.capH(lay.size), gap = lay.size === 'L' ? 10 : 6,
+      blockH, top, i, n = 0;
+    info = { size: lay.size, lines: lay.lines, x: [], capY: [], start: [], capH: capH };
+    blockH = lay.lines.length * capH + (lay.lines.length - 1) * gap;
+    top = Math.round((L.h - blockH) / 2);
+    for (i = 0; i < lay.lines.length; i++) {
+      info.x.push(Math.round((L.w - title.measure(lay.lines[i], lay.size)) / 2));
+      info.capY.push(top + i * (capH + gap));
+      info.start.push(n);                       // global letter index of the line
+      n += lay.lines[i].length;
+    }
+    info.count = n;
+    info.top = top;
+    info.bottom = top + blockH;
+    info.landed = DROP_AT + (n - 1) * DROP_STEP + DROP_MS;
+    info.shineAt = Math.max(info.landed + LINE_MS, SHINE_MIN_AT);
+  }
+
+  function render(ctx, w, h) {
+    var t = MR.now() - t0, i, j, bars, sub, n, lineW, s, k, cx = Math.round(w / 2), close, uy, sw;
+    if (!L || !info) { return; }
+    ctx.drawImage(bg, 0, 0);
+
+    // "SCENE 1/5", typed
+    sub = 'SCENE ' + (params.index + 1) + '/' + cfg.SCENES.length;
+    n = Math.max(0, Math.min(sub.length, Math.floor((t - SUB_AT) / SUB_MS) + 1));
+    if (n > 0) {
+      font.drawCaps(ctx, sub.substr(0, n), Math.round(cx - (font.measure(sub, 1) - 1) / 2),
+        info.top - 22, 'dim', 1);
+    }
+
+    // title letters drop in with a bounce; the shine sweeps left to right
+    s = (t - info.shineAt) / SHINE_MS * (info.count + 3) - 1.5;
+    for (i = 0; i < info.lines.length; i++) {
+      (function (line) {
+        title.draw(ctx, info.lines[line], info.x[line], info.capY[line], info.size, function (j2) {
+          var gi = info.start[line] + j2, st = DROP_AT + gi * DROP_STEP, kk;
+          if (t < st) { return { hidden: true }; }
+          kk = Math.min(1, (t - st) / DROP_MS);
+          return { dy: -(1 - easeOutBack(kk)) * DROP_H, shine: t >= info.shineAt && Math.abs(gi - s) < 1.5 };
+        });
+      }(i));
+    }
+
+    // underline grows outward from the center once every letter landed
+    if (t > info.landed) {
+      k = Math.min(1, (t - info.landed) / LINE_MS);
+      lineW = 0;
+      for (j = 0; j < info.lines.length; j++) { lineW = Math.max(lineW, title.measure(info.lines[j], info.size)); }
+      sw = Math.round(lineW * easeInOut(k));
+      uy = info.bottom + (info.size === 'L' ? 10 : 7);
+      ctx.fillStyle = MR.palette.TITLE.ramp[1];
+      ctx.fillRect(cx - Math.round(sw / 2), uy, sw, 2);
+      ctx.fillStyle = MR.palette.TITLE.ramp[3];
+      ctx.fillRect(cx - Math.round(sw / 2), uy + 2, sw, 1);
+    }
+
+    // twinkling stars around the title during the shine
+    if (t > info.shineAt) {
+      for (j = 0; j < 4; j++) {
+        if ((Math.floor(t / 180) + j) % 3 !== 0) {
+          font.drawCentered(ctx, '+', [20, w - 20, 36, w - 36][j],
+            [info.top - 6, info.top + 4, info.bottom + 2, info.bottom - 10][j], j % 2 ? 'white' : 'yellow', 1);
+        }
+      }
+    }
+
+    // letterbox bars: slide in, then close to black at the end
+    bars = Math.round(BAR_H * easeInOut(Math.min(1, t / BARS_MS)));
+    if (t > CLOSE_AT) {
+      close = easeInOut(Math.min(1, (t - CLOSE_AT) / (cfg.TRANSITION_MS - CLOSE_AT)));
+      bars = Math.round(BAR_H + (Math.ceil(h / 2) - BAR_H) * close);
+    }
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, bars);
+    ctx.fillRect(0, h - bars, w, bars);
+  }
+
+  MR.states.add('transition', {
+    enter: function (p, now) {
+      params = p;
+      t0 = now;
+      done = false;
+      if (L) { prepare(); }
+    },
+    layout: function (w, h) {
+      L = { w: w, h: h };
+      bg = buildBg(w, h);
+      prepare();
+    },
+    update: function (now) {
+      MR.states.invalidate();
+      if (!done && now - t0 >= cfg.TRANSITION_MS) {
+        done = true;
+        MR.states.go('scene', params);
+      }
+    },
+    render: render
+    // taps are ignored so the card can't be skipped by accident
+  });
+}());
+
 // ------------------------------------------------------------------ SCENE
 // Generic scene player: timestamp timer, shrinking time bar, STOP button and
 // the animation clock. The scene art lives in src/scenes/<id>.js as
 // MR.scenes[id] = { init(), render(ctx, clock) } drawing a 256x224 frame.
+// The timer starts on enter (the title card is the separate 'transition').
 (function () {
   var cfg = MR.config, C = MR.palette.UI, ui = MR.ui, font = MR.font;
 
@@ -538,36 +673,125 @@ var MR = window.MR = window.MR || {};
   });
 }());
 
-// ------------------------------------------------------------------ stubs
-// Placeholders until TRANSITION / GAMEOVER / END exist. Tap -> OPTIONS.
+// ------------------------------------------------------------------ GREAT JOB
+// After STOP: the kid crouches, jumps with both arms up, lands and claps
+// three times, under falling confetti. Tap -> OPTIONS (next scene: later).
 (function () {
-  var cfg = MR.config, C = MR.palette.UI, font = MR.font;
+  var cfg = MR.config, C = MR.palette.UI, T = MR.palette.TEXT, font = MR.font;
+  var params = {}, t0 = 0, L = null;
 
-  function stub(title, titleColor, line1, line2, pose) {
-    var params = {};
-    return {
-      enter: function (p) { params = p; },
-      render: function (ctx, w, h) {
-        var cx = Math.round(w / 2), next = cfg.SCENES[params.index + 1];
-        ctx.fillStyle = C.bg;
-        ctx.fillRect(0, 0, w, h);
-        font.drawCentered(ctx, title, cx, 30, titleColor, 3);
-        MR.character.draw(ctx, pose, cx, 150, 2);
-        font.drawCentered(ctx, line1(next), cx, 172, 'white', 1);
-        font.drawCentered(ctx, line2, cx, 186, 'dim', 1);
-        font.drawCentered(ctx, 'TAP TO GO BACK', cx, h - 20, 'white', 1);
-      },
-      pointerUp: function () { MR.states.go('options'); }
+  var SCALE = 2, JUMP_H = 16;
+  var STEPS = [
+    { dur: 160, armL: 'down',       armR: 'down',       mouth: 'smile', crouch: true },
+    { dur: 520, armL: 'waveUp',     armR: 'waveUp',     mouth: 'open',  jump: true },
+    { dur: 140, armL: 'down',       armR: 'down',       mouth: 'open',  crouch: true },
+    { dur: 150, armL: 'clapOpen',   armR: 'clapOpen',   mouth: 'open' },
+    { dur: 150, armL: 'clapClosed', armR: 'clapClosed', mouth: 'open',  clap: true },
+    { dur: 150, armL: 'clapOpen',   armR: 'clapOpen',   mouth: 'open' },
+    { dur: 150, armL: 'clapClosed', armR: 'clapClosed', mouth: 'open',  clap: true },
+    { dur: 150, armL: 'clapOpen',   armR: 'clapOpen',   mouth: 'open' },
+    { dur: 150, armL: 'clapClosed', armR: 'clapClosed', mouth: 'open',  clap: true },
+    { dur: 380, armL: 'down',       armR: 'down',       mouth: 'smile' }
+  ];
+  var LOOP_MS = 0, i;
+  for (i = 0; i < STEPS.length; i++) {
+    LOOP_MS += STEPS[i].dur;
+    STEPS[i].pose = {
+      outfit: 'ready', armL: STEPS[i].armL, armR: STEPS[i].armR,
+      eyes: 'happy', mouth: STEPS[i].mouth,
+      offsets: STEPS[i].crouch ? { torso: [0, 1] } : null
     };
   }
 
-  MR.states.add('sceneDone', stub('GREAT JOB!', 'yellow',
-    function (next) { return next ? 'NEXT: ' + next.label : 'ALL DONE!'; },
-    'COMING SOON',
-    { outfit: 'ready', eyes: 'happy', mouth: 'open', armR: 'waveUp' }));
+  var CONFETTI_COLORS = [T.yellow, C.stopFace, C.startLight, C.btnFace, C.stopLight, T.white];
 
-  MR.states.add('gameover', stub('TIME\'S UP!', 'white',
-    function () { return 'GAME OVER SCREEN'; },
-    'COMING SOON',
-    { outfit: 'ready', eyes: 'closed', mouth: 'open' }));
+  function stepAt(t) {
+    var k = t % LOOP_MS, j;
+    for (j = 0; j < STEPS.length; j++) {
+      if (k < STEPS[j].dur) { return { step: STEPS[j], f: k / STEPS[j].dur }; }
+      k -= STEPS[j].dur;
+    }
+    return { step: STEPS[0], f: 0 };
+  }
+
+  function drawConfetti(ctx, w, h, t) {
+    var j, x, y, v, flip;
+    for (j = 0; j < 20; j++) {
+      v = 0.03 + (j % 5) * 0.008;
+      y = ((t * v + j * 37) % (h + 20)) - 10;
+      x = (j * 53 + 11) % w + Math.round(Math.sin(t * 0.004 + j) * 4);
+      flip = Math.floor(t / 120 + j) % 2;              // flutter
+      ctx.fillStyle = CONFETTI_COLORS[j % CONFETTI_COLORS.length];
+      ctx.fillRect(Math.round(x), Math.round(y), flip ? 3 : 2, flip ? 2 : 3);
+    }
+  }
+
+  function render(ctx, w, h) {
+    var cx = Math.round(w / 2), t = MR.now() - t0, a = stepAt(t), st = a.step,
+      lift = 0, b, handY, next = cfg.SCENES[params.index + 1], shadowW;
+    ctx.fillStyle = C.bg;
+    ctx.fillRect(0, 0, w, h);
+    if (!L) { return; }
+    drawConfetti(ctx, w, h, t);
+
+    font.drawCentered(ctx, 'GREAT JOB!', cx, L.titleY, 'yellow', 3);
+
+    if (st.jump) { lift = Math.round(JUMP_H * 4 * a.f * (1 - a.f)); }
+    // floor and a shadow that shrinks while he is in the air
+    ctx.fillStyle = C.floor;
+    ctx.fillRect(0, L.groundY, w, 3);
+    shadowW = 36 - lift;
+    ctx.fillStyle = C.floorDark;
+    ctx.fillRect(cx - Math.round(shadowW / 2), L.groundY, shadowW, 2);
+
+    MR.character.draw(ctx, st.pose, cx, L.groundY - lift, SCALE);
+
+    if (st.clap) {                                     // sparkles at the hands
+      b = MR.character.bake(st.pose);
+      handY = L.groundY - (b.ay - b.points['torso.neck'][1] - 4) * SCALE;
+      font.drawCentered(ctx, '+', cx - 22, handY - 6, 'yellow', 1);
+      font.drawCentered(ctx, '+', cx + 22, handY - 10, 'white', 1);
+      font.drawCentered(ctx, '+', cx + 26, handY + 2, 'yellow', 1);
+    }
+
+    font.drawCentered(ctx, next ? 'NEXT: ' + next.label : 'ALL DONE!', cx, L.groundY + 16, 'white', 1);
+    font.drawCentered(ctx, 'COMING SOON', cx, L.groundY + 30, 'dim', 1);
+    font.drawCentered(ctx, 'TAP TO GO BACK', cx, h - 20, 'white', 1);
+  }
+
+  MR.states.add('sceneDone', {
+    enter: function (p, now) {
+      var j;
+      params = p;
+      t0 = now;
+      for (j = 0; j < STEPS.length; j++) { MR.character.bake(STEPS[j].pose); }   // pre-bake
+    },
+    layout: function (w, h) {
+      L = { titleY: 28 };
+      L.groundY = Math.min(h - 80, Math.max(150, Math.round(h / 2) + 40));
+    },
+    update: function () { MR.states.invalidate(); },
+    render: render,
+    pointerUp: function () { MR.states.go('options'); }
+  });
+}());
+
+// ------------------------------------------------------------------ stubs
+// Placeholder until the GAMEOVER screen exists. Tap -> OPTIONS.
+(function () {
+  var C = MR.palette.UI, font = MR.font;
+
+  MR.states.add('gameover', {
+    render: function (ctx, w, h) {
+      var cx = Math.round(w / 2);
+      ctx.fillStyle = C.bg;
+      ctx.fillRect(0, 0, w, h);
+      font.drawCentered(ctx, 'TIME\'S UP!', cx, 30, 'white', 3);
+      MR.character.draw(ctx, { outfit: 'ready', eyes: 'closed', mouth: 'open' }, cx, 150, 2);
+      font.drawCentered(ctx, 'GAME OVER SCREEN', cx, 172, 'white', 1);
+      font.drawCentered(ctx, 'COMING SOON', cx, 186, 'dim', 1);
+      font.drawCentered(ctx, 'TAP TO GO BACK', cx, h - 20, 'white', 1);
+    },
+    pointerUp: function () { MR.states.go('options'); }
+  });
 }());

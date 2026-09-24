@@ -2,13 +2,15 @@
 var MR = window.MR = window.MR || {};
 
 MR.config = {
-  // Scene list, in play order. Labels are upper case for the bitmap font.
+  // Scene list, in play order. Upper case for the bitmap font. `label` is
+  // shown on OPTIONS, `title` on the cinematic title card before the scene
+  // (accents as \u escapes: \u00C9 = E acute, \u00C0 = A grave).
   SCENES: [
-    { id: 'shower',    label: 'SHOWER',          defaultSec: 300 },
-    { id: 'dressing',  label: 'GETTING DRESSED', defaultSec: 300 },
-    { id: 'breakfast', label: 'BREAKFAST',       defaultSec: 600 },
-    { id: 'teeth',     label: 'BRUSHING TEETH',  defaultSec: 180 },
-    { id: 'shoes',     label: 'SHOES',           defaultSec: 120 }
+    { id: 'shower',    label: 'SHOWER',          defaultSec: 300, title: 'L\'HEURE DU BAIN' },
+    { id: 'dressing',  label: 'GETTING DRESSED', defaultSec: 300, title: 'ON S\'HABILLE' },
+    { id: 'breakfast', label: 'BREAKFAST',       defaultSec: 600, title: 'LE PETIT-D\u00C9JEUNER' },
+    { id: 'teeth',     label: 'BRUSHING TEETH',  defaultSec: 180, title: 'BROSSE \u00C0 DENTS' },
+    { id: 'shoes',     label: 'SHOES',           defaultSec: 120, title: 'LES CHAUSSURES' }
   ],
 
   // Options screen timer range
@@ -41,7 +43,7 @@ MR.config = {
   SPEED_RAMP_START: 0.5,
   RED_ALERT: 0.98,
   FLASH_HZ: 3,           // never above 3 (photosensitivity)
-  TRANSITION_MS: 2000,
+  TRANSITION_MS: 4000,   // title card before each scene; the timer waits
   MAX_DT: 100,           // anim clock never jumps more than this per frame (ms)
 
   // Time bar: color from each threshold of progress upward (MR.palette.UI keys)

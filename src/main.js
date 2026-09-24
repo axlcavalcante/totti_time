@@ -194,15 +194,17 @@ MR.now = (window.performance && window.performance.now) ?
     if (!(document.hidden || document.webkitHidden)) { fullClear = true; dirty = true; }
   }
 
-  // Dev shortcut: index.html?scene=0&sec=20 jumps straight into a scene
-  // with a short timer (not saved).
+  // Dev shortcut: index.html?scene=0&sec=20 jumps to a scene's title card,
+  // then the scene, with a short timer (not saved).
   function devStart() {
     var m = /[?&]scene=(\d+)/.exec(window.location.search), sec, d;
     if (!m || !cfg.SCENES[+m[1]]) { return false; }
     sec = /[?&]sec=(\d+)/.exec(window.location.search);
     d = MR.settings.load();
     if (sec) { d[+m[1]] = Math.max(1, +sec[1]); }
-    MR.states.go('scene', { index: +m[1], durations: d });
+    // &intro=0 skips the title card
+    MR.states.go(/[?&]intro=0/.test(window.location.search) ? 'scene' : 'transition',
+      { index: +m[1], durations: d });
     return true;
   }
 
