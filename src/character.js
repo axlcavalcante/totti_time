@@ -234,12 +234,15 @@ var MR = window.MR = window.MR || {};
       open:   { pivot: [0, 0], data: ['wk..wk', 'kk..kk', 'kk..kk'] },
       closed: { pivot: [0, 0], data: ['......', 'kk..kk', '......'] },
       // ^ ^ (8 wide, so pivot shifts one px left to stay centered)
-      happy:  { pivot: [1, 0], data: ['.k....k.', 'k.k..k.k', '........'] }
+      happy:  { pivot: [1, 0], data: ['.k....k.', 'k.k..k.k', '........'] },
+      // wide-open, small pupils: red alert / time almost up
+      worried: { pivot: [1, 0], data: ['kkk..kkk', 'wkw..wkw', '.w....w.'] }
     },
 
     mouth: {
       smile: { pivot: [0, 0], data: ['k..k', '.kk.'] },
-      open:  { pivot: [0, 0], data: ['kkkk', 'kddk', '.kk.'] }
+      open:  { pivot: [0, 0], data: ['kkkk', 'kddk', '.kk.'] },
+      worried: { pivot: [0, 0], data: ['.kk.', 'kddk', '.kk.'] }
     },
 
     hair: {

@@ -100,12 +100,13 @@ speed(p) = 1 + (MAX_SPEED - 1) * ((p - 0.5) / 0.5)^2   if p >= 0.5   // smooth e
 MAX_SPEED = 3.3   // tunable in config.js
 ```
 
-## Red alert (progress >= 98%)
+## Red alert (time almost up)
 
-- The whole screen (scene, bar and UI) switches to a **red high-contrast palette**. Each color is mapped to a red ramp by luminance: darks become deep red/black, lights become bright red/pink/white.
-- This is implemented by **pre-rendering a red variant of every cached sprite and background at startup**, then swapping which cache is drawn. It must never involve per-pixel work at runtime.
-- **Flashing:** alternate between the red palette and an inverted or brighter red frame. **Keep flashing at or below 3 flashes per second** (photosensitivity safety guideline). This is non-negotiable even if a faster rate "looks better".
-- On a short timer, 2% can be very brief (1.2 s for 60 s). That's expected.
+- **Trigger:** on while `remaining <= max(2% of the timer, min(5 s, 25% of the timer))`, so short timers still get a noticeable warning (`RED_ALERT`, `RED_ALERT_MIN_MS`, `RED_ALERT_MAX_FRAC` in `config.js`). Examples: 20 s timer -> last 5 s; 5 min -> last 6 s; 20 min -> last 24 s.
+- The whole screen (scene, bar area and UI) switches to a **red high-contrast palette**: each color is mapped to `MR.palette.RED_RAMP` by luminance (darks to deep red/black, lights to pink/white). STOP and the bar fill keep their own bright colors.
+- Implemented by **pre-rendering a red variant of every cached layer and sprite at scene init** with `MR.sprites.withRed(canvas)` (sets `canvas.red`). It uses `getImageData`, so it must **never** run in the frame loop. Scenes receive `render(ctx, clock, alert)` and draw `img.red` when `alert.red`. The UI swaps its color table with `MR.ui.setPalette(true)` (`MR.palette.UI_RED`).
+- **Smooth, not strobing:** the red version cross-fades in over `RED_FADE_MS` (300 ms). Then a sine "breathing" overlay of deep red pulses over the whole screen, speeding up from `RED_PULSE_HZ_MIN` (1.25 Hz) to `RED_PULSE_HZ_MAX` (2 Hz) as time runs out. Its phase is integrated so speed changes never jump. **It is hard-capped at `FLASH_HZ` = 3 flashes per second** (photosensitivity guideline). This is non-negotiable even if a faster rate "looks better".
+- **The kid gets worried:** scenes swap to `eyes: 'worried'` and `mouth: 'worried'` poses (pre-baked in `init`). The shower also shows a bobbing sweat drop.
 
 ## Art direction
 

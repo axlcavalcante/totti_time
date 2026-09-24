@@ -547,6 +547,10 @@ var MR = window.MR = window.MR || {};
   var index = 0, durations = [], mod = null;
   var startTime = 0, duration = 1, last = 0, clock = 0, progress = 0, finished = false;
   var active = null, L = null;
+  // red alert
+  var alertOn = false, alertStart = 0, alertWindow = 0, pulsePhase = 0, pulseHz = 0, fade = 0;
+  var NORMAL = { red: false }, RED = { red: true };
+  var PULSE_COLOR = 'rgb(' + MR.palette.RED_RAMP[1].join(',') + ')';
   var stopBtn = ui.button({ label: 'STOP', style: 'stop', onPress: function () { finish('sceneDone'); } });
 
   // Animation speed multiplier: 1 until SPEED_RAMP_START, then eases in to
@@ -584,6 +588,19 @@ var MR = window.MR = window.MR || {};
     stopBtn.labelScale = stopH >= 40 ? 3 : 2;
   }
 
+  // Red alert window (ms): the last 2% of the timer, but at least ~5 s so
+  // short timers still get a noticeable warning, and never over 25% of it.
+  function alertWindowFor(d) {
+    return Math.max((1 - cfg.RED_ALERT) * d, Math.min(cfg.RED_ALERT_MIN_MS, cfg.RED_ALERT_MAX_FRAC * d));
+  }
+
+  // Pulse speed: RED_PULSE_HZ_MIN -> MAX as time runs out, hard-capped at
+  // FLASH_HZ (photosensitivity: never more than 3 flashes per second).
+  function pulseHzFor(remainingMs) {
+    var k = 1 - Math.max(0, Math.min(1, remainingMs / alertWindow));
+    return Math.min(cfg.FLASH_HZ, cfg.RED_PULSE_HZ_MIN + (cfg.RED_PULSE_HZ_MAX - cfg.RED_PULSE_HZ_MIN) * k);
+  }
+
   function renderPlaceholder(ctx) {
     ctx.fillStyle = C.panel;
     ctx.fillRect(0, 0, cfg.NATIVE_W, cfg.SCENE_H);
@@ -591,18 +608,33 @@ var MR = window.MR = window.MR || {};
     font.drawCentered(ctx, 'SCENE COMING SOON', cfg.NATIVE_W / 2, 120, 'dim', 1);
   }
 
+  function renderScene(ctx, alert) {
+    if (mod) { mod.render(ctx, clock, alert); } else { renderPlaceholder(ctx); }
+  }
+
   function render(ctx, w, h) {
-    var remaining;
-    ctx.fillStyle = C.bevelDark;
+    var remaining, redUI = alertOn && fade >= 0.5;
+    ui.setPalette(redUI);
+    ctx.fillStyle = redUI ? MR.palette.UI_RED.bevelDark : C.bevelDark;
     ctx.fillRect(0, 0, w, h);
-    if (!L) { return; }
+    if (!L) { ui.setPalette(false); return; }
 
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, L.viewY, cfg.NATIVE_W, cfg.SCENE_H);
     ctx.clip();
     ctx.translate(0, L.viewY);
-    if (mod) { mod.render(ctx, clock); } else { renderPlaceholder(ctx); }
+    if (!alertOn) {
+      renderScene(ctx, NORMAL);
+    } else if (fade < 1) {
+      // smooth entry: red version cross-fades over the normal one
+      renderScene(ctx, NORMAL);
+      ctx.globalAlpha = fade;
+      renderScene(ctx, RED);
+      ctx.globalAlpha = 1;
+    } else {
+      renderScene(ctx, RED);
+    }
     ctx.restore();
 
     remaining = Math.ceil(duration * (1 - progress) / 1000);
@@ -612,6 +644,15 @@ var MR = window.MR = window.MR || {};
       L.readoutY + 1, 'white', 1);
     ui.drawTimeBar(ctx, 4, L.barY, w - 8, cfg.SCENE_BAR_H, progress);
     ui.drawButton(ctx, stopBtn);
+
+    // smooth "breathing" deep-red pulse over the whole screen
+    if (alertOn) {
+      ctx.globalAlpha = (0.10 + 0.35 * (1 - Math.cos(2 * Math.PI * pulsePhase)) / 2) * fade;
+      ctx.fillStyle = PULSE_COLOR;
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalAlpha = 1;
+    }
+    ui.setPalette(false);
   }
 
   MR.speedAt = speed;
@@ -628,6 +669,11 @@ var MR = window.MR = window.MR || {};
       clock = 0;
       progress = 0;
       finished = false;
+      alertWindow = alertWindowFor(duration);
+      alertOn = false;
+      pulsePhase = 0;
+      pulseHz = 0;
+      fade = 0;
       active = null;
       stopBtn.pressed = false;
     },
@@ -644,6 +690,15 @@ var MR = window.MR = window.MR || {};
       dt = Math.min(Math.max(now - last, 0), cfg.MAX_DT);
       last = now;
       clock += dt * speed(progress);
+
+      // red alert: fade in, then a pulse whose phase is integrated so a
+      // change of speed never jumps
+      if (!alertOn && duration - (now - startTime) <= alertWindow) { alertOn = true; alertStart = now; }
+      if (alertOn) {
+        fade = Math.min(1, (now - alertStart) / cfg.RED_FADE_MS);
+        pulseHz = pulseHzFor(duration - (now - startTime));
+        pulsePhase += dt / 1000 * pulseHz;
+      }
       MR.states.invalidate();
       if (progress >= 1) { finish('gameover'); }
     },
@@ -669,7 +724,11 @@ var MR = window.MR = window.MR || {};
     },
 
     // For tests / debugging.
-    debug: function () { return { progress: progress, clock: clock, index: index }; }
+    exit: function () { ui.setPalette(false); },
+
+    debug: function () {
+      return { progress: progress, clock: clock, index: index, alert: alertOn, pulseHz: pulseHz, fade: fade };
+    }
   });
 }());
 

@@ -41,8 +41,15 @@ MR.config = {
   // Scene playback (future tasks)
   MAX_SPEED: 3.3,
   SPEED_RAMP_START: 0.5,
+  // Red alert: on while remaining <= max(RED_ALERT share, min(MIN_MS,
+  // MAX_FRAC of the timer)), so short timers still get a noticeable warning.
   RED_ALERT: 0.98,
-  FLASH_HZ: 3,           // never above 3 (photosensitivity)
+  RED_ALERT_MIN_MS: 5000,
+  RED_ALERT_MAX_FRAC: 0.25,
+  RED_FADE_MS: 300,      // cross-fade into the red palette
+  RED_PULSE_HZ_MIN: 1.25, // smooth pulse speeds up as time runs out...
+  RED_PULSE_HZ_MAX: 2,
+  FLASH_HZ: 3,           // ...but never above 3 (photosensitivity hard cap)
   TRANSITION_MS: 4000,   // title card before each scene; the timer waits
   MAX_DT: 100,           // anim clock never jumps more than this per frame (ms)
 
