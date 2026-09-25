@@ -36,7 +36,7 @@ The newest Chrome available on KitKat is about v81, but the real device may be m
 
 ## File structure
 
-No modules exist, so files are loaded with plain `<script>` tags **in dependency order**. Everything hangs off a single global namespace, `window.MR` ("Morning Routine").
+No modules exist, so files are loaded **in dependency order** by a tiny loader in `index.html` that `document.write`s one `<script>` per file with a `?v=<timestamp>` cache-buster, so the browser never runs a stale copy (simple static servers send no cache headers). **Add new files to that list.** Everything hangs off a single global namespace, `window.MR` ("Morning Routine").
 
 ```
 index.html          // canvas + script tags, minimal CSS
@@ -53,6 +53,7 @@ src/scenes/teeth.js
 src/scenes/shoes.js
 src/ui.js           // time bar, buttons, touch hit-testing
 src/states.js       // state machine (options, transition, scene, gameover, end)
+src/testmode.js     // TEST MODE: jump to any screen, speed slider, END OF TIMER
 src/main.js         // boot, resize, main loop
 ```
 
@@ -147,6 +148,12 @@ The scene names below are defaults in `config.js` and are easy to rename or tran
 ## Sound
 
 Sound is out of scope for v1. If added later, it must be optional, use Web Audio with the `webkitAudioContext` fallback, and start only after a user tap (autoplay rules).
+
+## Test mode (`src/testmode.js`)
+
+The **TEST MODE** button on OPTIONS (header, bottom-right) (`config.SHOW_TEST_BUTTON`) opens a plain menu with one link per implemented screen: each scene, each scene's title card, GREAT JOB and GAME OVER. The list is built from `config.SCENES` plus `MR.scenes`, so new scenes appear automatically. A link shows **only the animation**, a **speed slider** (x0.25 to x4) and **BACK**. It never advances to another screen.
+- **Scenes** run on a test clock. **END OF TIMER** simulates the last 10 s of a 20 s timer with the real speed-up and red alert, using the shared `MR.timerFx`, the same code as the game.
+- **Full-screen states** (title, GREAT JOB, GAME OVER) are rendered with a virtual `MR.now`, swapped only during their render, and restarted in a loop. Their `update` is never called.
 
 ## How to work on this project
 
