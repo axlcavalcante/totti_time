@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Scene strip</title>
+<style>body{margin:0;background:#222}canvas{image-rendering:pixelated}</style></head>
+<body>
+<script>
+// Dev only: renders a filmstrip of one scene. ?scene=teeth&t=0,500,...&red=1
+(function () {
+  var files = ['config','palette','weather','font','sprites','character','sky','scenes/shower','scenes/dressing','scenes/breakfast','scenes/teeth','ui'];
+  for (var i = 0; i < files.length; i++) { document.write('<script src="../src/' + files[i] + '.js?v=' + Date.now() + '"><\/script>'); }
+}());
+</script>
+<script>
+(function () {
+  var q = location.search, id = (/scene=(\w+)/.exec(q) || [0, 'teeth'])[1];
+  var times = ((/t=([\d,]+)/.exec(q) || [0, '0,500,1000'])[1]).split(',').map(Number);
+  var red = /red=1/.test(q), cols = 4;
+  MR.config.DEV = true;
+  MR.font.init();
+  var m = MR.scenes[id]; m.init();
+  var strip = document.createElement('canvas'); strip.width = 258 * cols; strip.height = 226 * Math.ceil(times.length / cols);
+  var sx = strip.getContext('2d');
+  times.forEach(function (t, i) { var c = document.createElement('canvas'); c.width = 256; c.height = 224; m.render(c.getContext('2d'), t, { red: red }); sx.drawImage(c, (i % cols) * 258, Math.floor(i / cols) * 226); });
+  strip.style.width = (strip.width * 1.5) + 'px'; document.body.appendChild(strip);
+}());
+</script>
+</body></html>

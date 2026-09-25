@@ -143,12 +143,17 @@ The scene names below are defaults in `config.js` and are easy to rename or tran
 1. **SHOWER:** Bathroom tiles in the background. The kid's head and shoulders show above an opaque curtain. The loop: water streaming from the shower head, the kid scrubbing his hair with shampoo foam, bubbles floating up, steam drifting.
 2. **GETTING DRESSED (`src/scenes/dressing.js`):** His bedroom: star wallpaper, a curtained window, wall shelves with toys (a small red car, ball, teddy, robot, blocks) and his bed with a **small panda teddy next to the pillow**. The loop (steps x `DRESSING.TEMPO`): bare-chested with his bath towel around his waist down to the knees (underwear shorts always on beneath), he pulls his underwear on under it and drops the towel on the bed. He hops into his pants, sits on the bed edge (the seat height comes from the rig's `sit` legs), pulls the t-shirt over his head (head pops through, `tshirtRolled`) and puts on both socks (`sockLeft`, then `socks`), then the loop restarts. **No shoes in this scene.** Dressing stages use the pose `clothes: [...]` override, and props sit in his hands through each arm's `hand` point.
 3. **BREAKFAST (`src/scenes/breakfast.js`):** The kid sits **facing us across the kitchen table** (a front view, so the same rig is reused; the kid is drawn at 3x). The checked tablecloth hides him below the chest. The kitchen has a warm wall, a tiled backsplash, wooden cabinets, a **wall clock showing the real time**, and a window with the live sky and a plant on the sill. The loop (steps x `BREAKFAST.TEMPO`), done twice: the spoon dips into the bowl of cereal, lifts (`spoonMid`), goes to his mouth (`toMouth`), and he chews with his cheeks puffing (`head: 'puff'` + `chewA`/`chewB`). Then he sips his milk (`armL: 'toMouth'` with a tilted glass) and gets a **milk mustache** (`mouth: 'milky'`).
-4. **BRUSHING TEETH:** A bathroom mirror framing. The loop: toothbrush moves side to side, foam builds at the mouth, and he spits into the sink now and then.
+4. **BRUSHING TEETH (`src/scenes/teeth.js`):** Seen **from the mirror's point of view**, with no mirror frame drawn: the kid (4x, front view) stands behind the sink facing us, low in the frame. In the foreground there is only the counter's **top slab** (no cabinet doors) with the basin rim, a cup with two toothbrushes, a toothpaste tube, and a **big faucet in the middle seen from behind**, cut off by the bottom of the screen. Behind him, placed low and sized plausibly: a wooden door with the red striped towel on its hook, and a wicker laundry basket, on the white tiles with blue trim. The loop (steps x `TEETH.TEMPO`): the toothbrush moves side to side at his mouth (`armR: 'toMouth'` + `offsets: { armR: [+-1, 0] }`, `mouth: 'brush'` showing teeth) while foam builds up (3 sizes). Then he leans toward the sink (`offsets: { torso: [0, 3] }`, `mouth: 'spit'`), a foam drop arcs down into the basin, and he comes back up happy.
 5. **SHOES (close-up):** A low camera near the floor showing only his lower legs and socked feet (same socks as scene 2). The loop: a foot slides into a shoe, he pulls the strap or tongue, closes the velcro, and switches feet.
 
 ## Sound
 
 Sound is out of scope for v1. If added later, it must be optional, use Web Audio with the `webkitAudioContext` fallback, and start only after a user tap (autoplay rules).
+
+## Dev tools
+
+- `tools/character-preview.html`: every part, overlay and pose at 4x, with dev warnings on.
+- `tools/scene-strip.html?scene=<id>&t=0,500,...&red=1`: a filmstrip of one scene at the given animation-clock times (also usable with headless Chrome `--screenshot` when no browser is attached).
 
 ## Test mode (`src/testmode.js`)
 

@@ -431,7 +431,10 @@ var MR = window.MR = window.MR || {};
       // chewing (lips pressed / small open) and a milk mustache after a sip
       chewA: { pivot: [0, 0], data: ['kkkk', '....'] },
       chewB: { pivot: [0, 0], data: ['.kk.', '.kk.'] },
-      milky: { pivot: [1, 0], data: ['wwwwww', '.k..k.', '..kk..'] }
+      milky: { pivot: [1, 0], data: ['wwwwww', '.k..k.', '..kk..'] },
+      // brushing (open, white teeth) and a small pursed mouth to spit
+      brush: { pivot: [1, 0], data: ['kkkkkk', 'kwwwwk', '.kddk.'] },
+      spit:  { pivot: [0, 0], data: ['....', '.kk.', '.kk.'] }
     },
 
     hair: {
