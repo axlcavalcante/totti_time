@@ -150,6 +150,41 @@ var MR = window.MR = window.MR || {};
     });
   }
 
+  // Screen-left arm bringing something to his mouth (glass / spoon): elbow
+  // out, forearm up across the chest. Pivot = shoulder. Mirrored for armR.
+  var TO_MOUTH = [
+    '........kkk.',
+    '.......ksssk',
+    '.......kssSk',
+    '......kssk..',
+    '.....kssk...',
+    '....kssk....',
+    '...kssskkk..',
+    '..kssssssk..',
+    '.kssSSSSk...',
+    '.kssk.......',
+    '..kk........'];
+  var SLEEVE_TO_MOUTH = rows(rep(6, '............'),
+    ['......kkkk..',
+     '.....kaaak..',
+     '....kaAAk...'],
+    rep(2, '............'));
+  // Hand at the top of the chest (spoon on its way up).
+  var SPOON_MID = [
+    '........kkk.',
+    '.......ksssk',
+    '......kkssSk',
+    '...kkksssk..',
+    '..ksssssk...',
+    '.kssSSkk....',
+    '.kssk.......',
+    '..kk........'];
+  var SLEEVE_SPOON_MID = rows(rep(2, '............'),
+    ['......kk....',
+     '.....kaak...',
+     '....kaAk....'],
+    rep(3, '............'));
+
   // ---------------------------------------------------------------- body parts
   var PARTS = {
     legs: {
@@ -309,7 +344,9 @@ var MR = window.MR = window.MR || {};
       clapOpen: { pivot: [2, 0], data: CLAP_OPEN },
       clapClosed: { pivot: [2, 0], data: CLAP_CLOSED },
       holdLow: { pivot: [3, 0], data: HOLD_LOW },
-      reachDown: { pivot: [3, 0], data: REACH_DOWN }
+      reachDown: { pivot: [3, 0], data: REACH_DOWN },
+      toMouth: { pivot: [8, 7], data: TO_MOUTH },
+      spoonMid: { pivot: [8, 3], data: SPOON_MID }
     },
 
     // Screen-right arm, front view.
@@ -325,7 +362,9 @@ var MR = window.MR = window.MR || {};
       scrubA: { pivot: [6, 18], data: mirror(SCRUB_A) },
       scrubB: { pivot: [6, 18], data: mirror(SCRUB_B) },
       holdLow: { pivot: [3, 0], data: mirror(HOLD_LOW) },
-      reachDown: { pivot: [1, 0], data: mirror(REACH_DOWN) }
+      reachDown: { pivot: [1, 0], data: mirror(REACH_DOWN) },
+      toMouth: { pivot: [3, 7], data: mirror(TO_MOUTH) },
+      spoonMid: { pivot: [3, 3], data: mirror(SPOON_MID) }
     },
 
     head: {
@@ -347,6 +386,25 @@ var MR = window.MR = window.MR || {};
            '...kssssssSSk...',
            '....kksssSkk....',
            '......kkkk......'])
+      },
+      // Chewing: cheeks bulge 1 px out (rows 10-13) and get rosier. Same
+      // size and points as 'base', so eyes, mouth and hair attach unchanged.
+      puff: {
+        pivot: [8, 15],
+        points: { eyes: [5, 7], mouth: [6, 11], crown: [0, 0], top: [8, 0] },
+        data: rows(
+          ['....kkkkkkkk....',
+           '...kssssssssk...'],
+          rep(4, '..kssssssssSSk..'),
+          ['.kkssssssssSSkk.',
+           'kskssssssssSSkSk',
+           'kSkssssssssSSkSk',
+           '.kkssssssssSSkk.',
+           '.kscccsssscccSk.',
+           '.ksccssssssccSk.',
+           '..kssssssssSSk..',
+           '...kkssssSSkk...',
+           '.....kkkkkk.....'])
       }
     },
 
@@ -369,7 +427,11 @@ var MR = window.MR = window.MR || {};
       worried: { pivot: [0, 0], data: ['.kk.', 'kddk', '.kk.'] },
       // crying wail (wide open, tongue) and a smaller trembling frame
       wailA: { pivot: [1, 0], data: ['.kkkk.', 'kddddk', '.kcck.'] },
-      wailB: { pivot: [1, 0], data: ['......', '.kkkk.', '.kddk.'] }
+      wailB: { pivot: [1, 0], data: ['......', '.kkkk.', '.kddk.'] },
+      // chewing (lips pressed / small open) and a milk mustache after a sip
+      chewA: { pivot: [0, 0], data: ['kkkk', '....'] },
+      chewB: { pivot: [0, 0], data: ['.kk.', '.kk.'] },
+      milky: { pivot: [1, 0], data: ['wwwwww', '.k..k.', '..kk..'] }
     },
 
     hair: {
@@ -407,9 +469,9 @@ var MR = window.MR = window.MR || {};
   (function () {
     var HANDS = {
       armL: { down: [2, 11], waveUp: [3, 1], waveMid: [2, 1], clapOpen: [6, 3], clapClosed: [7, 3],
-        scrubA: [9, 1], scrubB: [7, 1], holdLow: [5, 9], reachDown: [2, 15] },
+        scrubA: [9, 1], scrubB: [7, 1], holdLow: [5, 9], reachDown: [2, 15], toMouth: [9, 1], spoonMid: [9, 1] },
       armR: { down: [1, 11], waveUp: [3, 1], waveMid: [5, 1], clapOpen: [2, 3], clapClosed: [1, 3],
-        scrubA: [3, 1], scrubB: [5, 1], holdLow: [1, 9], reachDown: [2, 15] }
+        scrubA: [3, 1], scrubB: [5, 1], holdLow: [1, 9], reachDown: [2, 15], toMouth: [2, 1], spoonMid: [2, 1] }
     }, side, v;
     for (side in HANDS) {
       for (v in HANDS[side]) { PARTS[side][v].points = { hand: HANDS[side][v] }; }
@@ -442,7 +504,9 @@ var MR = window.MR = window.MR || {};
         clapOpen: SLEEVE_CLAP,
         clapClosed: SLEEVE_CLAP,
         holdLow: SLEEVE_HOLD_LOW,
-        reachDown: SLEEVE_REACH
+        reachDown: SLEEVE_REACH,
+        toMouth: SLEEVE_TO_MOUTH,
+        spoonMid: SLEEVE_SPOON_MID
       },
       armR: {
         down: rows(['kk..', 'kak.', 'kaAk', 'kaAk', 'kkkk'], rep(8, '....')),
@@ -451,7 +515,9 @@ var MR = window.MR = window.MR || {};
         clapOpen: mirror(SLEEVE_CLAP),
         clapClosed: mirror(SLEEVE_CLAP),
         holdLow: mirror(SLEEVE_HOLD_LOW),
-        reachDown: mirror(SLEEVE_REACH)
+        reachDown: mirror(SLEEVE_REACH),
+        toMouth: mirror(SLEEVE_TO_MOUTH),
+        spoonMid: mirror(SLEEVE_SPOON_MID)
       }
     },
 
@@ -526,6 +592,7 @@ var MR = window.MR = window.MR || {};
            'kpppppkkppppPk'],
           rep(8, 'kpppPk..kpppPk'),
           ['kPPPPk..kPPPPk']),
+        hidden: rep(13, '..............'),   // legs out of frame (under the table)
         hop: rows(
           ['kPPPPPPPPPPPPk',
            'kPPPPPPPPPPPPk',

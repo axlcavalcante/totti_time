@@ -229,6 +229,41 @@ var MR = window.MR = window.MR || {};
       })
     },
 
+    // BREAKFAST scene (kitchen). Each map is one palette line (<= 15 colors).
+    BREAKFAST: {
+      kitchen: makeMap({
+        k: [36, 36, 73],
+        y: [255, 219, 146],  // warm wall
+        Y: [219, 182, 109],  // wall shade
+        w: [255, 255, 255],  // tiles, window frame
+        v: [219, 219, 219],  // tile shade
+        g: [182, 182, 182],  // grout
+        o: [182, 109, 36],   // wood (cabinets, chair)
+        O: [109, 73, 36],
+        l: [219, 146, 73],
+        f: [182, 146, 109],  // floor
+        F: [146, 109, 73],
+        c: [255, 255, 219],  // clock face
+        m: [146, 146, 182],  // metal knobs
+        t: [73, 146, 73]     // plant leaves
+      }),
+      table: makeMap({
+        k: [36, 36, 73],
+        w: [255, 255, 255],  // cloth white, milk
+        r: [255, 109, 109],  // cloth red (light)
+        R: [219, 73, 73],
+        b: [73, 109, 219],   // bowl
+        B: [36, 73, 182],
+        y: [255, 182, 36],   // cereal
+        Y: [219, 109, 0],
+        G: [219, 255, 255],  // glass
+        g: [182, 182, 219],  // spoon
+        x: [109, 109, 146],
+        o: [182, 109, 36],   // table legs
+        O: [109, 73, 36]
+      })
+    },
+
     // Window sky (MR.weather): gradient bands top -> bottom per time of day,
     // grey versions for bad weather, plus sun/moon/clouds/rain/snow colors.
     SKY: {

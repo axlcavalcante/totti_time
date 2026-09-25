@@ -43,6 +43,7 @@ index.html          // canvas + script tags, minimal CSS
 src/config.js       // scene list, labels, default durations, tuning constants
 src/palette.js      // Mega Drive palette, color ramps, red-alert palette mapping
 src/weather.js      // optional live sky (Open-Meteo), local sun math fallback
+src/sky.js          // draws the live sky into any window pane (MR.sky.draw)
 src/font.js         // bitmap pixel font (drawn from data, no web fonts)
 src/sprites.js      // sprite data format + pre-render/cache utilities
 src/character.js    // THE kid: all body parts, expressions, outfits (reused everywhere)
@@ -59,7 +60,7 @@ src/main.js         // boot, resize, main loop
 
 The game must run when `index.html` is served over plain HTTP (local network server or static hosting). Don't rely on anything that needs a backend.
 
-**Optional live sky (`src/weather.js`):** the bedroom window shows the real sky of Locmariaquer (`config.WEATHER`), meaning the current weather and time of day, from **Open-Meteo** (free, no API key). It uses `XMLHttpRequest` only (no `fetch`/`Promise`), tries https and then http (old KitKat devices may reject modern certificates), and has a 6 s timeout. The result is cached in `localStorage` and refreshed every 30 min. It **never blocks the game**: offline, sunrise and sunset are computed locally (NOAA equation) and the weather defaults to partly cloudy. Only the fixed city coordinates are sent. The sky canvas is rebuilt only when the look changes, never per frame. Dev override for testing: `?sky=rain&tod=dawn` (kinds: clear, partly, overcast, fog, rain, snow, storm; phases: night, dawn, day, dusk).
+**Optional live sky (`src/weather.js` data + `src/sky.js` drawing, shared by every window):** the bedroom and kitchen windows show the real sky of Locmariaquer (`config.WEATHER`), meaning the current weather and time of day, from **Open-Meteo** (free, no API key). It uses `XMLHttpRequest` only (no `fetch`/`Promise`), tries https and then http (old KitKat devices may reject modern certificates), and has a 6 s timeout. The result is cached in `localStorage` and refreshed every 30 min. It **never blocks the game**: offline, sunrise and sunset are computed locally (NOAA equation) and the weather defaults to partly cloudy. Only the fixed city coordinates are sent. The sky canvas is rebuilt only when the look changes, never per frame. Dev override for testing: `?sky=rain&tod=dawn` (kinds: clear, partly, overcast, fog, rain, snow, storm; phases: night, dawn, day, dusk).
 
 ## Screen layout
 
@@ -141,7 +142,7 @@ The scene names below are defaults in `config.js` and are easy to rename or tran
 
 1. **SHOWER:** Bathroom tiles in the background. The kid's head and shoulders show above an opaque curtain. The loop: water streaming from the shower head, the kid scrubbing his hair with shampoo foam, bubbles floating up, steam drifting.
 2. **GETTING DRESSED (`src/scenes/dressing.js`):** His bedroom: star wallpaper, a curtained window, wall shelves with toys (a small red car, ball, teddy, robot, blocks) and his bed with a **small panda teddy next to the pillow**. The loop (steps x `DRESSING.TEMPO`): bare-chested with his bath towel around his waist down to the knees (underwear shorts always on beneath), he pulls his underwear on under it and drops the towel on the bed. He hops into his pants, sits on the bed edge (the seat height comes from the rig's `sit` legs), pulls the t-shirt over his head (head pops through, `tshirtRolled`) and puts on both socks (`sockLeft`, then `socks`), then the loop restarts. **No shoes in this scene.** Dressing stages use the pose `clothes: [...]` override, and props sit in his hands through each arm's `hand` point.
-3. **BREAKFAST:** Kitchen table seen from the side. The loop: spoon goes into the bowl, lifts to the mouth, he chews with cheeks puffing, and sips from a glass of milk now and then.
+3. **BREAKFAST (`src/scenes/breakfast.js`):** The kid sits **facing us across the kitchen table** (a front view, so the same rig is reused; the kid is drawn at 3x). The checked tablecloth hides him below the chest. The kitchen has a warm wall, a tiled backsplash, wooden cabinets, a **wall clock showing the real time**, and a window with the live sky and a plant on the sill. The loop (steps x `BREAKFAST.TEMPO`), done twice: the spoon dips into the bowl of cereal, lifts (`spoonMid`), goes to his mouth (`toMouth`), and he chews with his cheeks puffing (`head: 'puff'` + `chewA`/`chewB`). Then he sips his milk (`armL: 'toMouth'` with a tilted glass) and gets a **milk mustache** (`mouth: 'milky'`).
 4. **BRUSHING TEETH:** A bathroom mirror framing. The loop: toothbrush moves side to side, foam builds at the mouth, and he spits into the sink now and then.
 5. **SHOES (close-up):** A low camera near the floor showing only his lower legs and socked feet (same socks as scene 2). The loop: a foot slides into a shoe, he pulls the strap or tongue, closes the velcro, and switches feet.
 

@@ -57,7 +57,12 @@
     ['shirt on', { clothes: ['pants', 'tshirt'], legs: 'sit', armL: 'holdLow', armR: 'holdLow' }],
     ['lift L', { clothes: ['pants', 'tshirt'], legs: 'sitLiftL', feet: 'liftL', armL: 'reachDown', armR: 'reachDown' }],
     ['sock L + lift R', { clothes: ['pants', 'tshirt', 'sockLeft'], legs: 'sitLiftR', feet: 'liftR', armL: 'reachDown', armR: 'reachDown' }],
-    ['socks, sit', { clothes: ['pants', 'tshirt', 'socks'], legs: 'sit' }]
+    ['socks, sit', { clothes: ['pants', 'tshirt', 'socks'], legs: 'sit' }],
+    ['breakfast spoonMid', { outfit: 'dressed', legs: 'hidden', feet: null, armR: 'spoonMid' }],
+    ['breakfast toMouth R', { outfit: 'dressed', legs: 'hidden', feet: null, armR: 'toMouth', mouth: 'open' }],
+    ['breakfast chew puff', { outfit: 'dressed', legs: 'hidden', feet: null, head: 'puff', mouth: 'chewA' }],
+    ['breakfast sip L', { outfit: 'dressed', legs: 'hidden', feet: null, armL: 'toMouth', eyes: 'closed' }],
+    ['breakfast milky', { outfit: 'dressed', legs: 'hidden', feet: null, mouth: 'milky', eyes: 'happy' }]
   ].forEach(function (a) {
     var pose = { outfit: 'underwear' }, k2;
     for (k2 in a[1]) { pose[k2] = a[1][k2]; }

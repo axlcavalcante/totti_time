@@ -23,7 +23,6 @@ MR.scenes = MR.scenes || {};
   var PANE = { x: 75, y: 33, w: 54, h: 54 };       // window glass, shows the live sky
 
   var bgBack = null, props = {}, steps = [], worried = [], stepDur = [], sweat = null;
-  var skyImg = null, skyKey = '', clouds = {};
 
   function rect(ctx, color, x, y, w, h) {
     ctx.fillStyle = color;
@@ -134,14 +133,6 @@ MR.scenes = MR.scenes || {};
     'kwwkk',
     'kwwwk',
     '.kkkk'];
-
-  var CLOUD = [
-    '....aaaa........',
-    '..aaaaaaaa.aaa..',
-    '.aaaaaaaaaaaaaa.',
-    'aaaaaaaaaaaaaaaa',
-    'abbbbbbbbbbbbbba',
-    '.bbbbbbbbbbbbbb.'];
 
   var SWEAT = [
     '..q..',
@@ -369,8 +360,6 @@ MR.scenes = MR.scenes || {};
     props.shirt = MR.sprites.buildSprite(SHIRT, kidMap);
     props.sock = MR.sprites.buildSprite(SOCK, kidMap);
     sweat = MR.sprites.buildSprite(SWEAT, MR.palette.FX);
-    clouds.white = MR.sprites.withRed(MR.sprites.buildSprite(CLOUD, { a: MR.palette.SKY.c.cloud, b: MR.palette.SKY.c.cloudShade }));
-    clouds.dark = MR.sprites.withRed(MR.sprites.buildSprite(CLOUD, { a: MR.palette.SKY.c.dark, b: MR.palette.SKY.c.darkShade }));
 
     for (i = 0; i < TIMELINE.length; i++) {
       steps.push(place(TIMELINE[i]));
@@ -382,114 +371,6 @@ MR.scenes = MR.scenes || {};
     MR.sprites.withRed(bgBack);
     MR.sprites.withRed(sweat);
     for (k in props) { if (props.hasOwnProperty(k)) { MR.sprites.withRed(props[k]); } }
-  }
-
-  // ------------------------------------------------------------ live sky
-  var SC = MR.palette.SKY.c;
-
-  function css(c) { return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; }
-
-  function disc(ctx, cx, cy, r, color) {
-    var x, y;
-    ctx.fillStyle = color;
-    for (y = -r; y <= r; y++) {
-      for (x = -r; x <= r; x++) { if (x * x + y * y <= r * r + r) { ctx.fillRect(cx + x, cy + y, 1, 1); } }
-    }
-  }
-
-  // Pre-renders the pane's sky for one look (phase x weather). Only called
-  // when MR.weather's key changes (new data or a new phase), not per frame.
-  function buildSky(s) {
-    var c = MR.sprites.createCanvas(PANE.w, PANE.h), ctx = c.getContext('2d'),
-      bad = /overcast|rain|storm|snow|fog/.test(s.kind),
-      bands = (bad ? MR.palette.SKY.grey : MR.palette.SKY.bands)[s.phase] || MR.palette.SKY.bands.day,
-      bh = PANE.h / bands.length, x, y, b, sx, sy, i;
-    for (y = 0; y < PANE.h; y++) {
-      b = Math.min(bands.length - 1, Math.floor(y / bh));
-      for (x = 0; x < PANE.w; x += 1) {
-        // dithered band edges, Mega Drive style
-        i = (b > 0 && y - b * bh < 2 && (x + y) % 2 === 0) ? b - 1 : b;
-        ctx.fillStyle = css(bands[i]);
-        ctx.fillRect(x, y, 1, 1);
-      }
-    }
-    if (!bad || s.kind === 'snow') {
-      if (s.phase === 'night' && !bad) {
-        [[6, 6], [18, 14], [30, 4], [46, 20], [10, 28], [38, 34], [24, 24], [50, 8]].forEach(function (p) {
-          ctx.fillStyle = SC.star; ctx.fillRect(p[0], p[1], 1, 1);
-        });
-        disc(ctx, 42, 11, 5, SC.moon);                    // crescent moon
-        disc(ctx, 44, 9, 4, css(bands[0]));
-      } else if (s.phase === 'dawn' && !bad) {
-        disc(ctx, 14, PANE.h - 2, 7, SC.sunEdge);          // rising, bottom-left
-        disc(ctx, 14, PANE.h - 2, 5, SC.sun);
-      } else if (s.phase === 'dusk' && !bad) {
-        disc(ctx, 40, PANE.h - 2, 7, SC.sunEdge);          // setting, bottom-right
-        disc(ctx, 40, PANE.h - 2, 5, SC.sun);
-      } else if (s.phase === 'day' && !bad) {
-        sx = Math.round(7 + s.sunPos * (PANE.w - 14));      // arc across the pane
-        sy = Math.round(PANE.h - 10 - Math.sin(s.sunPos * Math.PI) * (PANE.h - 20));
-        disc(ctx, sx, sy, 6, SC.sunEdge);
-        disc(ctx, sx, sy, 5, SC.sun);
-      }
-    }
-    if (s.kind === 'fog') {                                // dithered haze
-      ctx.fillStyle = SC.fog;
-      for (y = 0; y < PANE.h; y++) {
-        for (x = (y % 2); x < PANE.w; x += 2) { ctx.fillRect(x, y, 1, 1); }
-      }
-    }
-    return MR.sprites.withRed(c);                          // tiny canvas, on change only
-  }
-
-  function drawSky(ctx, clock) {
-    var s = MR.weather ? MR.weather.sky(new Date().getTime()) : { phase: 'day', kind: 'partly', sunPos: 0.5, key: 'd' },
-      n, i, x, y, cl, k, fl;
-    if (s.key !== skyKey || !skyImg) { skyImg = buildSky(s); skyKey = s.key; }
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(PANE.x, PANE.y, PANE.w, PANE.h);
-    ctx.clip();
-    ctx.drawImage(im(skyImg), PANE.x, PANE.y);
-
-    // clouds drifting slowly sideways
-    n = { partly: 2, overcast: 4, rain: 4, storm: 4, snow: 3, fog: 0, clear: 0 }[s.kind] || 0;
-    cl = im(/rain|storm|overcast/.test(s.kind) || s.phase === 'night' ? clouds.dark : clouds.white);
-    for (i = 0; i < n; i++) {
-      x = PANE.x - 16 + ((clock * (0.004 + i * 0.002) + i * 23) % (PANE.w + 16));
-      y = PANE.y + 4 + (i * 11) % 30;
-      ctx.drawImage(cl, Math.round(x), y);
-    }
-    // rain streaks / snowflakes
-    if (s.kind === 'rain' || s.kind === 'storm') {
-      ctx.fillStyle = red ? MR.palette.toRed(SC.rain) : SC.rain;
-      for (i = 0; i < 16; i++) {
-        x = PANE.x + ((i * 7 + clock * 0.03) % (PANE.w + 6)) - 3;
-        y = PANE.y + ((i * 13 + clock * 0.12) % (PANE.h + 6)) - 3;
-        ctx.fillRect(Math.round(x), Math.round(y), 1, 3);
-        ctx.fillRect(Math.round(x) - 1, Math.round(y) + 3, 1, 1);
-      }
-    } else if (s.kind === 'snow') {
-      ctx.fillStyle = red ? MR.palette.toRed(SC.snow) : SC.snow;
-      for (i = 0; i < 14; i++) {
-        x = PANE.x + ((i * 9) % PANE.w) + Math.round(Math.sin(clock * 0.002 + i) * 2);
-        y = PANE.y + ((i * 17 + clock * 0.02) % PANE.h);
-        ctx.fillRect(Math.round(x), Math.round(y), i % 3 ? 1 : 2, i % 3 ? 1 : 2);
-      }
-    }
-    // storm: a gentle, rare lightning glow (one smooth 400 ms pulse every
-    // ~8 s of animation, far below the 3 flashes/s photosensitivity limit)
-    if (s.kind === 'storm') {
-      k = clock % 8000;
-      if (k < 400) {
-        fl = Math.sin(k / 400 * Math.PI) * 0.35;
-        ctx.globalAlpha = fl;
-        ctx.fillStyle = red ? MR.palette.toRed(SC.flash) : SC.flash;
-        ctx.fillRect(PANE.x, PANE.y, PANE.w, PANE.h);
-        ctx.globalAlpha = 1;
-      }
-    }
-    ctx.restore();
   }
 
   var red = false;
@@ -505,7 +386,7 @@ MR.scenes = MR.scenes || {};
     red = !!(alert && alert.red);
     st = red ? worried[a.i] : steps[a.i];
 
-    drawSky(ctx, clock);
+    MR.sky.draw(ctx, PANE, clock, red);             // live Locmariaquer sky (src/sky.js)
     ctx.drawImage(im(bgBack), 0, 0);
 
     // the towel: on him (overlay), falling to the bed, or lying on the bed
