@@ -44,6 +44,7 @@ src/config.js       // scene list, labels, default durations, tuning constants
 src/palette.js      // Mega Drive palette, color ramps, red-alert palette mapping
 src/weather.js      // optional live sky (Open-Meteo), local sun math fallback
 src/sky.js          // draws the live sky into any window pane (MR.sky.draw)
+src/lighting.js     // recolors outdoor scenes for the time of day / weather (END)
 src/font.js         // bitmap pixel font (drawn from data, no web fonts)
 src/sprites.js      // sprite data format + pre-render/cache utilities
 src/character.js    // THE kid: all body parts, expressions, outfits (reused everywhere)
@@ -52,6 +53,7 @@ src/scenes/dressing.js
 src/scenes/breakfast.js
 src/scenes/teeth.js
 src/scenes/shoes.js
+src/scenes/end.js   // END screen art (house front, school bag, hydrangea)
 src/ui.js           // time bar, buttons, touch hit-testing
 src/states.js       // state machine (options, transition, scene, gameover, end)
 src/testmode.js     // TEST MODE: jump to any screen, speed slider, END OF TIMER
@@ -84,7 +86,7 @@ OPTIONS -> TRANSITION(1) -> SCENE(1) --STOP--> TRANSITION(2) -> SCENE(2) ... SCE
 - **SCENE:** The looping animation, time bar and STOP button. The timer starts when the transition ends.
 - **GAMEOVER:** Shown when time reaches 0 before STOP. The **same kid** (the normal rig, drawn up to 4x) cries: sad brows and eyes shut tight (`eyes: 'cryA'/'cryB'`), a wailing mouth (`mouth: 'wailA'/'wailB'`) and sobbing dips. Tears well up in the outer eye corners (anchored to the baked `head.eyes` point), roll down the cheeks and drip off below the chin, with wet trails on the cheeks. Big red "GAME OVER" letters (title font, `red` color set) thud in. A CONTINUE button appears after 1.5 s and goes to the next scene's title card (OPTIONS after the last one) so the routine isn't blocked.
 - **GREAT JOB (`sceneDone`):** After STOP, the kid jumps with both arms up, lands and claps under falling confetti. After `GREAT_JOB_MS` (6 s, with a small fill bar) it goes **automatically** to the next scene's title card, or OPTIONS after the last scene until END exists. Taps are ignored.
-- **END:** A short "ALL DONE!" celebration with the kid happy, then a tap returns to OPTIONS.
+- **END (`end` state + art in `src/scenes/end.js`):** Reached by pressing STOP on the last scene in time (a scene 5 time-out goes GAME OVER -> OPTIONS instead). The screen is the house front, after `photo_sample.jpeg`, framed close on the entrance: an anthracite arched door with a glass strip under a dark porch canopy, a beige stone wall on the left, a cream wall with a small window and a lamp, a HOME doormat, terracotta pots, light-brown tiles, and a blue/violet/pink **hydrangea as tall as the kid** on the right. The same kid, **fully dressed with his shoes on** (`ready`), waves goodbye while holding his **wheeled school bag** (black with green trim, drawn at 3x so it's waist-high), with happy hops. "ALL DONE!" drops in (title font) with a shine and confetti. The whole scene is **lit for the real time of day and weather** in Locmariaquer (`src/lighting.js`: `MR.lighting.grade(canvas, look)`, cached per look, Mega Drive-snapped): pink-gold sunrise, normal day, orange evening with the lamp on, blue night with the lamp glow and lit window and door glass, grey for cloudy or fog (plus haze), grey-blue for rain or storm (plus rain streaks; storm adds the same rare gentle glow as the windows), and snow with flakes. "TAP TO PLAY AGAIN" and taps are enabled after `END.TAP_AT` (2.5 s), and a tap goes to OPTIONS.
 
 ## Timer logic
 
@@ -159,7 +161,8 @@ Sound is out of scope for v1. If added later, it must be optional, use Web Audio
 
 The **TEST MODE** button on OPTIONS (header, bottom-right) (`config.SHOW_TEST_BUTTON`) opens a plain menu with one link per implemented screen: each scene, each scene's title card, GREAT JOB and GAME OVER. The list is built from `config.SCENES` plus `MR.scenes`, so new scenes appear automatically. A link shows **only the animation**, a **speed slider** (x0.25 to x4) and **BACK**. It never advances to another screen.
 - **Scenes** run on a test clock. **END OF TIMER** simulates the last 10 s of a 20 s timer with the real speed-up and red alert, using the shared `MR.timerFx`, the same code as the game.
-- **Full-screen states** (title, GREAT JOB, GAME OVER) are rendered with a virtual `MR.now`, swapped only during their render, and restarted in a loop. Their `update` is never called.
+- **Full-screen states** (title, GREAT JOB, GAME OVER, ALL DONE) are rendered with a virtual `MR.now`, swapped only during their render, and restarted in a loop. Their `update` is never called.
+- **Sky picker** in the test menu: TIME OF DAY (AUTO, SUNRISE, DAY, EVENING, NIGHT) and WEATHER (AUTO, CLEAR, CLOUDY, RAIN, SNOW, FOG, STORM) force `MR.weather.setOverride(phase, kind)`. That applies to every window (bedroom, kitchen, entrance door) and the END lighting. The override is reset to AUTO when leaving test mode, so a real morning always uses the real sky.
 
 ## How to work on this project
 

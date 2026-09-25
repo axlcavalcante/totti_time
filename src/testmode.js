@@ -47,34 +47,94 @@ var MR = window.MR = window.MR || {};
     }
     list.push({ label: 'GREAT JOB', kind: 'state', state: 'sceneDone', params: { index: 0 }, loop: cfg.GREAT_JOB_MS });
     list.push({ label: 'GAME OVER', kind: 'state', state: 'gameover', params: { index: 0 }, loop: 5000 });
+    list.push({ label: 'ALL DONE', kind: 'state', state: 'end', params: {}, loop: 8000 });
     return list;
   }
 
+  // SKY picker (test only): force the time of day and the weather for every
+  // window and the END lighting. AUTO = the real Locmariaquer data. Reset to
+  // AUTO when leaving test mode, so a real morning always uses the real sky.
+  var TIME_OPTS = [['AUTO', null], ['SUNRISE', 'dawn'], ['DAY', 'day'], ['EVENING', 'dusk'], ['NIGHT', 'night']];
+  var SKY_OPTS = [['AUTO', null], ['CLEAR', 'clear'], ['CLOUDY', 'overcast'], ['RAIN', 'rain'],
+    ['SNOW', 'snow'], ['FOG', 'fog'], ['STORM', 'storm']];
+
+  function currentOverride() {
+    return MR.weather ? MR.weather.getOverride() : { phase: null, kind: null };
+  }
+
   (function () {
-    var buttons = [], back, input;
+    var buttons = [], links = [], timeBtns = [], skyBtns = [], back, input, L = null;
     input = pressable(function () { return buttons; });
 
     function build() {
       var list = entries(), i;
-      buttons = [];
+      buttons = []; links = []; timeBtns = []; skyBtns = [];
+      for (i = 0; i < TIME_OPTS.length; i++) {
+        (function (opt) {
+          var b = ui.button({ label: opt[0], labelScale: 1, onPress: function () {
+            if (MR.weather) { MR.weather.setOverride(opt[1], currentOverride().kind); }
+          } });
+          b.value = opt[1];
+          timeBtns.push(b); buttons.push(b);
+        }(TIME_OPTS[i]));
+      }
+      for (i = 0; i < SKY_OPTS.length; i++) {
+        (function (opt) {
+          var b = ui.button({ label: opt[0], labelScale: 1, onPress: function () {
+            if (MR.weather) { MR.weather.setOverride(currentOverride().phase, opt[1]); }
+          } });
+          b.value = opt[1];
+          skyBtns.push(b); buttons.push(b);
+        }(SKY_OPTS[i]));
+      }
       for (i = 0; i < list.length; i++) {
         (function (e) {
-          buttons.push(ui.button({ label: e.label, labelScale: 1, onPress: function () {
+          var b = ui.button({ label: e.label, labelScale: 1, onPress: function () {
             MR.states.go('testView', { entry: e });
-          } }));
+          } });
+          links.push(b); buttons.push(b);
         }(list[i]));
       }
-      back = ui.button({ label: 'BACK', labelScale: 2, onPress: function () { MR.states.go('options'); } });
+      back = ui.button({ label: 'BACK', labelScale: 2, onPress: function () {
+        if (MR.weather) { MR.weather.setOverride(null, null); }       // never leak into a real game
+        MR.states.go('options');
+      } });
       buttons.push(back);
+    }
+
+    // selected options look pressed
+    function sync() {
+      var o = currentOverride(), i;
+      for (i = 0; i < timeBtns.length; i++) { timeBtns[i].pressed = timeBtns[i].value === o.phase; }
+      for (i = 0; i < skyBtns.length; i++) { skyBtns[i].pressed = skyBtns[i].value === o.kind; }
+    }
+
+    function row(list, y, h, w, perRow) {
+      var i, bw = Math.floor((w - 8 - (perRow - 1) * 4) / perRow);
+      for (i = 0; i < list.length; i++) {
+        ui.setRect(list[i], 4 + (i % perRow) * (bw + 4), y + Math.floor(i / perRow) * (h + 4), bw, h);
+      }
+      return y + Math.ceil(list.length / perRow) * (h + 4);
     }
 
     MR.states.add('testMenu', {
       enter: function () { build(); input.cancel(); },
       layout: function (w, h, metrics) {
-        var bh = Math.max(metrics.minTouch, 24), colW = Math.floor((w - 12) / 2), i, n = buttons.length - 1;
-        for (i = 0; i < n; i++) {
-          ui.setRect(buttons[i], 4 + (i % 2) * (colW + 4), 44 + Math.floor(i / 2) * (bh + 6), colW, bh);
-        }
+        var bh = Math.max(metrics.minTouch, 24), th = Math.max(Math.round(metrics.minTouch * 0.75), 20), y;
+        L = {};
+        L.timeLabel = 30;
+        y = row(timeBtns, 40, th, w, 5);
+        L.skyLabel = y + 2;
+        y = row(skyBtns, y + 12, th, w, 4);
+        L.linkLabel = y + 4;
+        // fit the screen links between the pickers and BACK: 2 columns if
+        // they fit at a comfortable height, otherwise 3 smaller columns
+        (function () {
+          var top = y + 14, avail = h - bh - 12 - top, cols = 2, lh;
+          lh = Math.min(bh, Math.floor(avail / Math.ceil(links.length / cols)) - 4);
+          if (lh < 22) { cols = 3; lh = Math.min(bh, Math.floor(avail / Math.ceil(links.length / cols)) - 4); }
+          row(links, top, Math.max(16, lh), w, cols);
+        }());
         ui.setRect(back, 4, h - bh - 8, w - 8, bh);
       },
       update: function () {},
@@ -82,8 +142,12 @@ var MR = window.MR = window.MR || {};
         var i;
         ctx.fillStyle = C.bg;
         ctx.fillRect(0, 0, w, h);
-        font.drawCentered(ctx, 'TEST MODE', Math.round(w / 2), 10, 'yellow', 2);
-        font.drawCentered(ctx, 'PICK A SCREEN', Math.round(w / 2), 30, 'dim', 1);
+        font.drawCentered(ctx, 'TEST MODE', Math.round(w / 2), 8, 'yellow', 2);
+        if (!L) { return; }
+        sync();
+        font.drawCaps(ctx, 'TIME OF DAY', 4, L.timeLabel, 'dim', 1);
+        font.drawCaps(ctx, 'WEATHER', 4, L.skyLabel, 'dim', 1);
+        font.drawCaps(ctx, 'PICK A SCREEN', 4, L.linkLabel, 'dim', 1);
         for (i = 0; i < buttons.length; i++) { ui.drawButton(ctx, buttons[i]); }
       },
       pointerDown: function (x, y) { input.down(x, y); MR.states.invalidate(); },

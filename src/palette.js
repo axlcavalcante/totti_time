@@ -344,6 +344,55 @@ var MR = window.MR = window.MR || {};
       })
     },
 
+    // END screen (in front of the house, like photo_sample.jpeg). <= 15 each.
+    END: {
+      house: makeMap({
+        k: [36, 36, 73],
+        a: [73, 73, 73],     // anthracite door / canopy
+        A: [36, 36, 36],
+        h: [109, 109, 109],
+        s: [219, 182, 146],  // stone wall: light / mid / dark
+        S: [182, 146, 109],
+        d: [146, 109, 73],
+        o: [255, 219, 182],  // mortar
+        c: [255, 255, 219],  // cream rendered wall
+        C: [219, 219, 182],
+        w: [255, 255, 255],
+        g: [182, 182, 219],  // glass
+        G: [219, 219, 255],
+        l: [255, 219, 109],  // lamp light
+        m: [182, 182, 182]   // chrome
+      }),
+      garden: makeMap({
+        k: [36, 36, 73],
+        t: [219, 182, 146],  // light-brown tiles
+        T: [182, 146, 109],
+        j: [146, 109, 73],   // grout
+        n: [146, 109, 36],   // doormat
+        N: [109, 73, 36],
+        r: [219, 109, 73],   // terracotta pots
+        R: [146, 73, 36],
+        e: [73, 146, 73],    // leaves
+        E: [36, 109, 36],
+        f: [109, 182, 73],
+        b: [109, 146, 255],  // hydrangea blue / violet / pink / light
+        v: [146, 109, 219],
+        p: [255, 146, 219],
+        q: [219, 219, 255]
+      }),
+      // his wheeled school bag: black with green trim
+      bag: makeMap({
+        k: [36, 36, 73],
+        x: [36, 36, 36],
+        X: [0, 0, 0],
+        g: [73, 182, 73],
+        G: [36, 109, 36],
+        m: [146, 146, 146],
+        M: [73, 73, 73],
+        r: [182, 182, 182]
+      })
+    },
+
     // Window sky (MR.weather): gradient bands top -> bottom per time of day,
     // grey versions for bad weather, plus sun/moon/clouds/rain/snow colors.
     SKY: {

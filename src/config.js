@@ -107,6 +107,11 @@ MR.config = {
     TEMPO: 1.25,
     FLOOR_Y: 196         // where his feet touch the floor
   },
+  END: {
+    KID_SCALE: 2,
+    TEMPO: 1.25,
+    TAP_AT: 2500         // "TAP TO PLAY AGAIN" (and taps) only after this
+  },
   SHOWER: {
     KID_SCALE: 2,        // kid pixel size inside the 256x224 scene
     RIM_Y: 150           // top of the bathtub rim

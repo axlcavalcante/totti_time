@@ -1,4 +1,4 @@
-// State machine: options, scene (+ stubs); transition/gameover/end come later.
+// State machine: options, transition, scene, sceneDone (GREAT JOB), gameover, end.
 // ES5 only.
 //
 // A state is an object with any of:
@@ -617,7 +617,10 @@ var MR = window.MR = window.MR || {};
   // red alert
   var alertOn = false, alertStart = 0, alertWindow = 0, pulsePhase = 0, pulseHz = 0, fade = 0;
   var FX = MR.timerFx;
-  var stopBtn = ui.button({ label: 'STOP', style: 'stop', onPress: function () { finish('sceneDone'); } });
+  // STOP: GREAT JOB, or the END screen after the last scene
+  var stopBtn = ui.button({ label: 'STOP', style: 'stop', onPress: function () {
+    finish(index === cfg.SCENES.length - 1 ? 'end' : 'sceneDone');
+  } });
 
   function finish(next) {
     if (finished) { return; }
@@ -1083,6 +1086,78 @@ var MR = window.MR = window.MR || {};
     },
     pointerCancel: function () {
       if (active) { active.pressed = false; active = null; }
+    }
+  });
+}());
+
+// ------------------------------------------------------------------ END
+// The routine is finished (STOP on the last scene in time). In front of the
+// house, the same kid, fully dressed with his shoes on, waves goodbye with
+// his wheeled school bag (art: src/scenes/end.js). "ALL DONE!" drops in, a
+// shine sweeps it, confetti falls. Taps are accepted after END.TAP_AT and go
+// back to OPTIONS.
+(function () {
+  var cfg = MR.config, C = MR.palette.UI, T = MR.palette.TEXT, font = MR.font, title = MR.font.title;
+  var t0 = 0, L = null, mod = null;
+  var CONFETTI = [T.yellow, C.stopFace, C.startLight, C.btnFace, C.stopLight, T.white];
+
+  function easeOutBounce(k) {
+    var n1 = 7.5625, d1 = 2.75;
+    if (k < 1 / d1) { return n1 * k * k; }
+    if (k < 2 / d1) { k -= 1.5 / d1; return n1 * k * k + 0.75; }
+    if (k < 2.5 / d1) { k -= 2.25 / d1; return n1 * k * k + 0.9375; }
+    k -= 2.625 / d1;
+    return n1 * k * k + 0.984375;
+  }
+
+  function render(ctx, w, h) {
+    var t = MR.now() - t0, text = 'ALL DONE!', tx, s, j, x, y, v;
+    ctx.fillStyle = C.bevelDark;
+    ctx.fillRect(0, 0, w, h);
+    if (!L || !mod) { return; }
+    ctx.save();
+    ctx.translate(0, L.artY);
+    mod.render(ctx, t);
+    ctx.restore();
+
+    // ALL DONE! drops in letter by letter, then a shine sweeps it every 3 s
+    tx = Math.round((w - title.measure(text, 'L')) / 2);
+    s = ((t - 1800) % 3000) / 700 * (text.length + 3) - 1.5;
+    title.draw(ctx, text, tx, L.artY + 5, 'L', function (i) {
+      var start = 200 + i * 110, k;
+      if (t < start) { return { hidden: true }; }
+      k = Math.min(1, (t - start) / 450);
+      return { dy: -(1 - easeOutBounce(k)) * 40, shine: t > 1800 && Math.abs(i - s) < 1.5 };
+    });
+
+    // light confetti
+    for (j = 0; j < 18; j++) {
+      v = 0.025 + (j % 5) * 0.007;
+      y = ((t * v + j * 41) % (h + 20)) - 10;
+      x = (j * 57 + 13) % w + Math.round(Math.sin(t * 0.004 + j) * 4);
+      ctx.fillStyle = CONFETTI[j % CONFETTI.length];
+      ctx.fillRect(Math.round(x), Math.round(y), (Math.floor(t / 120 + j) % 2) ? 3 : 2, (Math.floor(t / 120 + j) % 2) ? 2 : 3);
+    }
+
+    if (t >= cfg.END.TAP_AT) {
+      font.drawCentered(ctx, 'TAP TO PLAY AGAIN', Math.round(w / 2), L.tapY, 'white', 1);
+    }
+  }
+
+  MR.states.add('end', {
+    enter: function (p, now) {
+      t0 = now;
+      mod = MR.scenes && MR.scenes.end;
+      if (mod && !mod.ready) { mod.init(); mod.ready = true; }
+    },
+    layout: function (w, h) {
+      L = { artY: Math.max(0, Math.floor((h - cfg.SCENE_H - 20) / 2)) };
+      L.tapY = Math.min(h - 12, L.artY + cfg.SCENE_H + 8);
+    },
+    update: function () { MR.states.invalidate(); },
+    render: render,
+    pointerUp: function () {
+      if (MR.now() - t0 >= cfg.END.TAP_AT) { MR.states.go('options'); }
     }
   });
 }());
