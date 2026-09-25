@@ -52,6 +52,7 @@ src/scenes/dressing.js
 src/scenes/breakfast.js
 src/scenes/teeth.js
 src/scenes/shoes.js
+src/scenes/end.js   // END screen art (house front, school bag, hydrangea)
 src/ui.js           // time bar, buttons, touch hit-testing
 src/states.js       // state machine (options, transition, scene, gameover, end)
 src/testmode.js     // TEST MODE: jump to any screen, speed slider, END OF TIMER
@@ -84,7 +85,7 @@ OPTIONS -> TRANSITION(1) -> SCENE(1) --STOP--> TRANSITION(2) -> SCENE(2) ... SCE
 - **SCENE:** The looping animation, time bar and STOP button. The timer starts when the transition ends.
 - **GAMEOVER:** Shown when time reaches 0 before STOP. The **same kid** (the normal rig, drawn up to 4x) cries: sad brows and eyes shut tight (`eyes: 'cryA'/'cryB'`), a wailing mouth (`mouth: 'wailA'/'wailB'`) and sobbing dips. Tears well up in the outer eye corners (anchored to the baked `head.eyes` point), roll down the cheeks and drip off below the chin, with wet trails on the cheeks. Big red "GAME OVER" letters (title font, `red` color set) thud in. A CONTINUE button appears after 1.5 s and goes to the next scene's title card (OPTIONS after the last one) so the routine isn't blocked.
 - **GREAT JOB (`sceneDone`):** After STOP, the kid jumps with both arms up, lands and claps under falling confetti. After `GREAT_JOB_MS` (6 s, with a small fill bar) it goes **automatically** to the next scene's title card, or OPTIONS after the last scene until END exists. Taps are ignored.
-- **END:** A short "ALL DONE!" celebration with the kid happy, then a tap returns to OPTIONS.
+- **END (`end` state + art in `src/scenes/end.js`):** Reached by pressing STOP on the last scene in time (a scene 5 time-out goes GAME OVER -> OPTIONS instead). The screen is the house front, after `photo_sample.jpeg`, framed close on the entrance: an anthracite arched door with a glass strip under a dark porch canopy, a beige stone wall on the left, a cream wall with a small window and a lamp, a HOME doormat, terracotta pots, light-brown tiles, and a blue/violet/pink **hydrangea as tall as the kid** on the right. The same kid, **fully dressed with his shoes on** (`ready`), waves goodbye while holding his **wheeled school bag** (black with green trim, drawn at 3x so it's waist-high), with happy hops. "ALL DONE!" drops in (title font) with a shine and confetti. "TAP TO PLAY AGAIN" and taps are enabled after `END.TAP_AT` (2.5 s), and a tap goes to OPTIONS.
 
 ## Timer logic
 

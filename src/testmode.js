@@ -47,6 +47,7 @@ var MR = window.MR = window.MR || {};
     }
     list.push({ label: 'GREAT JOB', kind: 'state', state: 'sceneDone', params: { index: 0 }, loop: cfg.GREAT_JOB_MS });
     list.push({ label: 'GAME OVER', kind: 'state', state: 'gameover', params: { index: 0 }, loop: 5000 });
+    list.push({ label: 'ALL DONE (END)', kind: 'state', state: 'end', params: {}, loop: 8000 });
     return list;
   }
 
