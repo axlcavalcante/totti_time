@@ -153,7 +153,7 @@ Sound is out of scope for v1. If added later, it must be optional, use Web Audio
 ## Dev tools
 
 - `tools/character-preview.html`: every part, overlay and pose at 4x, with dev warnings on.
-- `tools/scene-strip.html?scene=<id>&t=0,500,...&red=1`: a filmstrip of one scene at the given animation-clock times (also usable with headless Chrome `--screenshot` when no browser is attached).
+- `tools/scene-strip.html?scene=<id>&t=0,500,...&red=1`: a filmstrip of one scene at the given animation-clock times. Add `&sky=<kind>&tod=<phase>` to force a window-sky look. It also works with headless Chrome `--screenshot` when no browser is attached.
 
 ## Test mode (`src/testmode.js`)
 

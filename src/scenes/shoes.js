@@ -15,7 +15,7 @@ MR.scenes = MR.scenes || {};
   var P = MR.palette.SHOES;
   var S, FLOOR_Y;
   var PANE = { x: 32, y: 48, w: 36, h: 28 };          // front door window (live sky)
-  var CAT = { x: 206, y: 0 };                         // y set in init (sits on the floor)
+  var CAT = { x: 204, y: 0 };                         // y set in init (sits on the floor)
 
   var bgBack = null, props = {}, cat = {}, steps = [], worried = [], stepDur = [], sweat = null;
 
@@ -39,30 +39,35 @@ MR.scenes = MR.scenes || {};
     'knnwnnnk',
     '.kkkkkkk'];
 
-  // the cat, sitting, facing left toward the kid (kid-pixel scale)
-  var CAT_BODY = pad(13, [
-    '.k..k',
-    'kbk.kbk',
-    'kbbkbbk',
-    'kbkbbbk',
-    'kbbbbbk',
-    'kwwbbbk',
-    'kpwwbbbkkkk',
-    '.kwwbbbbbbbk',
-    '.kwwwbbbbbbbk',
-    '.kwwwwbbbbbbk',
-    '.kwwwwwwBbbbk',
-    '.kwkwwwkwwwk',
-    '..kkkkkkkkkk']);
+  // the cat, sitting, head turned toward us, 16x16 kid pixels: light brown
+  // back, head, ears and tail (darker stripes), white muzzle, chest and paws,
+  // pink nose and inner ears, eyes with a white glint
+  var CAT_BODY = pad(16, [
+    '.k.....k',
+    'kpk...kpk',
+    'kbbkkkbbk',
+    'kbbbbbbbk',
+    'kbBbbbBbk',
+    'kbkwbwkbk',
+    'kbwwwwwbkkkk',
+    'kwwwpwwwkbbbk',
+    '.kwkwkwkbbBbbk',
+    '..kwwwkbbbbBbk',
+    '..kwwwwbbbbbbbk',
+    '..kwwwwwbbBbbbk',
+    '..kwwwwwbbbbbbk',
+    '..kwvwwwwbbbbbk',
+    '..kwkwwkwwwbbbk',
+    '...kkkkkkkkkkk']);
   var CAT_BLINK = CAT_BODY.slice(0);
-  CAT_BLINK[3] = 'kbbbbbk......';                      // eye closed
-  var CAT_EARS = CAT_BODY.slice(0);                     // ear twitch
-  CAT_EARS[0] = 'k...k........';
-  CAT_EARS[1] = 'kbk.kbk......';
+  CAT_BLINK[5] = pad(16, ['kbkkbkkbk'])[0];            // eyes closed
+  var CAT_EARS = CAT_BODY.slice(0);                     // right ear flicks down at the stomp
+  CAT_EARS[0] = pad(16, ['.k'])[0];
+  CAT_EARS[1] = pad(16, ['kpk...kkk'])[0];
   var CAT_TAIL = [
-    pad(6, ['...kk', '..kbk', '..kbk', '.kbk', '.kbk', 'kbk', 'kbk', 'kk']),
-    pad(6, ['', '....kk', '...kbk', '..kbk', '.kbbk', 'kbbk', 'kbk', 'kk']),
-    pad(6, ['', '', '', '.....k', '..kkbk', '.kbbbk', 'kbbkk', 'kk'])
+    pad(6, ['...kk', '..kbk', '..kbk', '.kbk', '.kBk', 'kbk', 'kbk', 'kbk', 'kk']),
+    pad(6, ['', '....kk', '...kbk', '..kbBk', '.kbbk', 'kbbk', 'kbk', 'kbk', 'kk']),
+    pad(6, ['', '', '', '', '.....k', '..kkbk', '.kbBbk', 'kbbkk', 'kk'])
   ];
 
   var SWEAT = [
@@ -238,7 +243,7 @@ MR.scenes = MR.scenes || {};
     var tail = cat.tail[Math.floor(clock / 260) % 3], body = cat.body, c = clock % 4200;
     if (c < 160) { body = cat.blink; }                       // blink now and then
     if (stomp) { body = cat.ears; }                          // ears twitch at the stomp
-    drawS(ctx, tail, CAT.x + 11 * S, CAT.y + 4 * S);
+    drawS(ctx, tail, CAT.x + 14 * S, CAT.y + 7 * S);
     drawS(ctx, body, CAT.x, CAT.y);
   }
 
