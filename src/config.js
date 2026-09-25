@@ -97,6 +97,9 @@ MR.config = {
     RIM_Y: 150           // top of the bathtub rim
   },
 
+  // Small TEST button on OPTIONS -> test mode (jump to any screen)
+  SHOW_TEST_BUTTON: true,
+
   // Dev checks (palette budget, missing overlays). tools/ pages turn it on.
   DEV: false
 };

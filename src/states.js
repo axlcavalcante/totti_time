@@ -119,7 +119,7 @@ var MR = window.MR = window.MR || {};
   var durations = [];
   var rows = [];          // [{ minus, plus, y, h, ctrlY, ctrlH }]
   var buttons = [];       // all buttons, for hit-testing
-  var startBtn = null;
+  var startBtn = null, testBtn = null;
   var active = null;      // button currently held
   var nextRepeat = 0, holdStart = 0;
 
@@ -218,6 +218,9 @@ var MR = window.MR = window.MR || {};
       }
     });
     buttons.push(startBtn);
+    // small entry to the test mode (parents / development), top-right header
+    testBtn = ui.button({ label: 'TEST MODE', labelScale: 1, onPress: function () { MR.states.go('testMenu'); } });
+    if (cfg.SHOW_TEST_BUTTON) { buttons.push(testBtn); }
   }
 
   // ----- layout
@@ -292,12 +295,13 @@ var MR = window.MR = window.MR || {};
     y += s.totalH;
     ui.setRect(startBtn, MARGIN, y, panelW, s.startH);
     startBtn.labelScale = s.startH >= 40 ? 3 : 2;
+    ui.setRect(testBtn, w - MARGIN - 66, L.floorY - 22, 66, 19);
   }
 
   // ----- drawing
 
   function render(ctx, w, h) {
-    var i, r, sc, label, titleW, titleScale, blockH, ty;
+    var i, r, sc, label, titleW, titleScale, blockH, ty, subW;
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, w, h);
     if (!L) { return; }
@@ -316,6 +320,12 @@ var MR = window.MR = window.MR || {};
     ty = L.headerY + Math.round((L.floorY - L.headerY - blockH) / 2);
     sc = L.textX + Math.round((w - MARGIN - L.textX) / 2);
     font.drawCentered(ctx, 'MORNING ROUTINE', sc, ty, 'yellow', titleScale);
+    // keep the subtitle clear of the TEST MODE button on short headers
+    subW = font.measure('SET THE TIMERS', 1);
+    if (cfg.SHOW_TEST_BUTTON && sc + subW / 2 > testBtn.x - 4 &&
+        ty + font.CAP_H * titleScale + 6 + font.CAP_H > testBtn.y) {
+      sc = Math.round(testBtn.x - 6 - subW / 2);
+    }
     font.drawCentered(ctx, 'SET THE TIMERS', sc, ty + font.CAP_H * titleScale + 6, 'dim', 1);
 
     // One panel per scene: "1 SHOWER" then [-] mm:ss [+]
@@ -332,6 +342,7 @@ var MR = window.MR = window.MR || {};
 
     font.drawCentered(ctx, 'TOTAL ' + ui.formatTime(totalSec()), Math.round(w / 2), L.totalY, 'dim', 1);
     ui.drawButton(ctx, startBtn);
+    if (cfg.SHOW_TEST_BUTTON) { ui.drawButton(ctx, testBtn); }
   }
 
   // ----- input
@@ -536,6 +547,62 @@ var MR = window.MR = window.MR || {};
   });
 }());
 
+// ------------------------------------------------------------------ timer FX
+// End-of-timer math and drawing shared by the real SCENE state and the test
+// mode's END OF TIMER simulation, so both behave exactly the same.
+(function () {
+  var cfg = MR.config;
+  var NORMAL = { red: false }, RED = { red: true };
+  var PULSE_COLOR = 'rgb(' + MR.palette.RED_RAMP[1].join(',') + ')';
+
+  MR.timerFx = {
+    // Animation speed multiplier: 1 until SPEED_RAMP_START, then eases in to
+    // MAX_SPEED at the end. Applied to the clock's dt, never to elapsed time.
+    speed: function (p) {
+      var r0 = cfg.SPEED_RAMP_START, k;
+      if (p < r0) { return 1; }
+      k = (p - r0) / (1 - r0);
+      return 1 + (cfg.MAX_SPEED - 1) * k * k;
+    },
+
+    // Red alert window (ms): the last 2% of the timer, but at least ~5 s so
+    // short timers still get a noticeable warning, and never over 25% of it.
+    alertWindow: function (d) {
+      return Math.max((1 - cfg.RED_ALERT) * d, Math.min(cfg.RED_ALERT_MIN_MS, cfg.RED_ALERT_MAX_FRAC * d));
+    },
+
+    // Pulse speed: RED_PULSE_HZ_MIN -> MAX as time runs out, hard-capped at
+    // FLASH_HZ (photosensitivity: never more than 3 flashes per second).
+    pulseHz: function (remainingMs, windowMs) {
+      var k = 1 - Math.max(0, Math.min(1, remainingMs / windowMs));
+      return Math.min(cfg.FLASH_HZ, cfg.RED_PULSE_HZ_MIN + (cfg.RED_PULSE_HZ_MAX - cfg.RED_PULSE_HZ_MIN) * k);
+    },
+
+    // Draws a scene module normally, cross-fading into (or fully in) red.
+    drawScene: function (ctx, draw, alertOn, fade) {
+      if (!alertOn) {
+        draw(ctx, NORMAL);
+      } else if (fade < 1) {
+        draw(ctx, NORMAL);                  // smooth entry: red fades in on top
+        ctx.globalAlpha = fade;
+        draw(ctx, RED);
+        ctx.globalAlpha = 1;
+      } else {
+        draw(ctx, RED);
+      }
+    },
+
+    // Smooth "breathing" deep-red pulse over (x, y, w, h).
+    drawPulse: function (ctx, x, y, w, h, phase, fade) {
+      ctx.globalAlpha = (0.10 + 0.35 * (1 - Math.cos(2 * Math.PI * phase)) / 2) * fade;
+      ctx.fillStyle = PULSE_COLOR;
+      ctx.fillRect(x, y, w, h);
+      ctx.globalAlpha = 1;
+    }
+  };
+  MR.speedAt = MR.timerFx.speed;
+}());
+
 // ------------------------------------------------------------------ SCENE
 // Generic scene player: timestamp timer, shrinking time bar, STOP button and
 // the animation clock. The scene art lives in src/scenes/<id>.js as
@@ -549,18 +616,8 @@ var MR = window.MR = window.MR || {};
   var active = null, L = null;
   // red alert
   var alertOn = false, alertStart = 0, alertWindow = 0, pulsePhase = 0, pulseHz = 0, fade = 0;
-  var NORMAL = { red: false }, RED = { red: true };
-  var PULSE_COLOR = 'rgb(' + MR.palette.RED_RAMP[1].join(',') + ')';
+  var FX = MR.timerFx;
   var stopBtn = ui.button({ label: 'STOP', style: 'stop', onPress: function () { finish('sceneDone'); } });
-
-  // Animation speed multiplier: 1 until SPEED_RAMP_START, then eases in to
-  // MAX_SPEED at the end. Applied to the clock's dt, never to elapsed time.
-  function speed(p) {
-    var r0 = cfg.SPEED_RAMP_START, k;
-    if (p < r0) { return 1; }
-    k = (p - r0) / (1 - r0);
-    return 1 + (cfg.MAX_SPEED - 1) * k * k;
-  }
 
   function finish(next) {
     if (finished) { return; }
@@ -588,19 +645,6 @@ var MR = window.MR = window.MR || {};
     stopBtn.labelScale = stopH >= 40 ? 3 : 2;
   }
 
-  // Red alert window (ms): the last 2% of the timer, but at least ~5 s so
-  // short timers still get a noticeable warning, and never over 25% of it.
-  function alertWindowFor(d) {
-    return Math.max((1 - cfg.RED_ALERT) * d, Math.min(cfg.RED_ALERT_MIN_MS, cfg.RED_ALERT_MAX_FRAC * d));
-  }
-
-  // Pulse speed: RED_PULSE_HZ_MIN -> MAX as time runs out, hard-capped at
-  // FLASH_HZ (photosensitivity: never more than 3 flashes per second).
-  function pulseHzFor(remainingMs) {
-    var k = 1 - Math.max(0, Math.min(1, remainingMs / alertWindow));
-    return Math.min(cfg.FLASH_HZ, cfg.RED_PULSE_HZ_MIN + (cfg.RED_PULSE_HZ_MAX - cfg.RED_PULSE_HZ_MIN) * k);
-  }
-
   function renderPlaceholder(ctx) {
     ctx.fillStyle = C.panel;
     ctx.fillRect(0, 0, cfg.NATIVE_W, cfg.SCENE_H);
@@ -624,17 +668,7 @@ var MR = window.MR = window.MR || {};
     ctx.rect(0, L.viewY, cfg.NATIVE_W, cfg.SCENE_H);
     ctx.clip();
     ctx.translate(0, L.viewY);
-    if (!alertOn) {
-      renderScene(ctx, NORMAL);
-    } else if (fade < 1) {
-      // smooth entry: red version cross-fades over the normal one
-      renderScene(ctx, NORMAL);
-      ctx.globalAlpha = fade;
-      renderScene(ctx, RED);
-      ctx.globalAlpha = 1;
-    } else {
-      renderScene(ctx, RED);
-    }
+    FX.drawScene(ctx, renderScene, alertOn, fade);
     ctx.restore();
 
     remaining = Math.ceil(duration * (1 - progress) / 1000);
@@ -646,16 +680,9 @@ var MR = window.MR = window.MR || {};
     ui.drawButton(ctx, stopBtn);
 
     // smooth "breathing" deep-red pulse over the whole screen
-    if (alertOn) {
-      ctx.globalAlpha = (0.10 + 0.35 * (1 - Math.cos(2 * Math.PI * pulsePhase)) / 2) * fade;
-      ctx.fillStyle = PULSE_COLOR;
-      ctx.fillRect(0, 0, w, h);
-      ctx.globalAlpha = 1;
-    }
+    if (alertOn) { FX.drawPulse(ctx, 0, 0, w, h, pulsePhase, fade); }
     ui.setPalette(false);
   }
-
-  MR.speedAt = speed;
 
   MR.states.add('scene', {
     enter: function (params, now) {
@@ -669,7 +696,7 @@ var MR = window.MR = window.MR || {};
       clock = 0;
       progress = 0;
       finished = false;
-      alertWindow = alertWindowFor(duration);
+      alertWindow = FX.alertWindow(duration);
       alertOn = false;
       pulsePhase = 0;
       pulseHz = 0;
@@ -689,14 +716,14 @@ var MR = window.MR = window.MR || {};
       // Animation: clamp dt so a stall (tab hidden) doesn't jump the loop.
       dt = Math.min(Math.max(now - last, 0), cfg.MAX_DT);
       last = now;
-      clock += dt * speed(progress);
+      clock += dt * FX.speed(progress);
 
       // red alert: fade in, then a pulse whose phase is integrated so a
       // change of speed never jumps
       if (!alertOn && duration - (now - startTime) <= alertWindow) { alertOn = true; alertStart = now; }
       if (alertOn) {
         fade = Math.min(1, (now - alertStart) / cfg.RED_FADE_MS);
-        pulseHz = pulseHzFor(duration - (now - startTime));
+        pulseHz = FX.pulseHz(duration - (now - startTime), alertWindow);
         pulsePhase += dt / 1000 * pulseHz;
       }
       MR.states.invalidate();
