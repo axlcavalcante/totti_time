@@ -102,6 +102,11 @@ MR.config = {
     TEMPO: 1.25,
     COUNTER_Y: 198       // top of the sink counter (low in the frame); hides him below the chest
   },
+  SHOES: {
+    KID_SCALE: 2,        // full body, like the dressing scene
+    TEMPO: 1.25,
+    FLOOR_Y: 196         // where his feet touch the floor
+  },
   SHOWER: {
     KID_SCALE: 2,        // kid pixel size inside the 256x224 scene
     RIM_Y: 150           // top of the bathtub rim

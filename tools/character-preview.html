@@ -64,7 +64,10 @@
     ['breakfast sip L', { outfit: 'dressed', legs: 'hidden', feet: null, armL: 'toMouth', eyes: 'closed' }],
     ['breakfast milky', { outfit: 'dressed', legs: 'hidden', feet: null, mouth: 'milky', eyes: 'happy' }],
     ['teeth brush', { outfit: 'dressed', legs: 'hidden', feet: null, armR: 'toMouth', mouth: 'brush' }],
-    ['teeth spit (lean)', { outfit: 'dressed', legs: 'hidden', feet: null, mouth: 'spit', offsets: { torso: [0, 3] } }]
+    ['teeth spit (lean)', { outfit: 'dressed', legs: 'hidden', feet: null, mouth: 'spit', offsets: { torso: [0, 3] } }],
+    ['shoes crouch socks', { outfit: 'dressed', legs: 'crouch', armL: 'reachDown', armR: 'reachDown' }],
+    ['shoes crouch one shoe', { clothes: ['tshirt', 'pants', 'socks', 'shoeLeft'], legs: 'crouch', armL: 'reachDown', armR: 'reachDown' }],
+    ['shoes both, stand', { clothes: ['tshirt', 'pants', 'socks', 'shoes'], eyes: 'happy', mouth: 'open' }]
   ].forEach(function (a) {
     var pose = { outfit: 'underwear' }, k2;
     for (k2 in a[1]) { pose[k2] = a[1][k2]; }
