@@ -92,6 +92,16 @@ MR.config = {
     FLOOR_Y: 196,        // where his feet touch the floor
     TEMPO: 1.25          // step durations x1.25 = 20% slower loop
   },
+  BREAKFAST: {
+    KID_SCALE: 3,        // closer framing across the table
+    TEMPO: 1.25,         // same calm pace as the dressing scene
+    TABLE_Y: 170         // top of the table; he is hidden below chest level
+  },
+  TEETH: {
+    KID_SCALE: 4,        // his reflection in the mirror, head and shoulders
+    TEMPO: 1.25,
+    COUNTER_Y: 198       // top of the sink counter (low in the frame); hides him below the chest
+  },
   SHOWER: {
     KID_SCALE: 2,        // kid pixel size inside the 256x224 scene
     RIM_Y: 150           // top of the bathtub rim

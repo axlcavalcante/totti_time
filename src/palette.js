@@ -229,6 +229,76 @@ var MR = window.MR = window.MR || {};
       })
     },
 
+    // BREAKFAST scene (kitchen). Each map is one palette line (<= 15 colors).
+    BREAKFAST: {
+      kitchen: makeMap({
+        k: [36, 36, 73],
+        y: [255, 219, 146],  // warm wall
+        Y: [219, 182, 109],  // wall shade
+        w: [255, 255, 255],  // tiles, window frame
+        v: [219, 219, 219],  // tile shade
+        g: [182, 182, 182],  // grout
+        o: [182, 109, 36],   // wood (cabinets, chair)
+        O: [109, 73, 36],
+        l: [219, 146, 73],
+        f: [182, 146, 109],  // floor
+        F: [146, 109, 73],
+        c: [255, 255, 219],  // clock face
+        m: [146, 146, 182],  // metal knobs
+        t: [73, 146, 73]     // plant leaves
+      }),
+      table: makeMap({
+        k: [36, 36, 73],
+        w: [255, 255, 255],  // cloth white, milk
+        r: [255, 109, 109],  // cloth red (light)
+        R: [219, 73, 73],
+        b: [73, 109, 219],   // bowl
+        B: [36, 73, 182],
+        y: [255, 182, 36],   // cereal
+        Y: [219, 109, 0],
+        G: [219, 255, 255],  // glass
+        g: [182, 182, 219],  // spoon
+        x: [109, 109, 146],
+        o: [182, 109, 36],   // table legs
+        O: [109, 73, 36]
+      })
+    },
+
+    // TEETH scene (bathroom, seen from the mirror). One palette line each (<= 15).
+    TEETH: {
+      bathroom: makeMap({
+        k: [36, 36, 73],
+        w: [255, 255, 255],  // tiles, enamel
+        v: [219, 219, 219],  // tile shade
+        g: [146, 182, 182],  // grout
+        t: [73, 146, 219],   // blue trim (same as the shower)
+        T: [36, 109, 182],
+        o: [182, 109, 36],   // door wood
+        O: [109, 73, 36],
+        r: [219, 73, 73],    // towel (same red as the shower towel)
+        R: [146, 36, 36],
+        c: [219, 219, 255],  // chrome
+        C: [146, 146, 182],
+        x: [73, 73, 109],
+        e: [182, 219, 219],  // enamel shade
+        E: [109, 146, 182]   // basin inside
+      }),
+      props: makeMap({
+        k: [36, 36, 73],
+        w: [255, 255, 255],  // bristles, foam
+        W: [182, 219, 255],  // foam shade
+        a: [73, 182, 109],   // his toothbrush (green)
+        A: [36, 109, 73],
+        o: [255, 109, 146],  // second toothbrush (pink)
+        O: [219, 73, 109],
+        y: [255, 219, 73],   // cup
+        Y: [219, 146, 36],
+        p: [73, 146, 255],   // toothpaste tube
+        P: [36, 73, 182],
+        s: [219, 36, 36]     // tube stripe
+      })
+    },
+
     // Window sky (MR.weather): gradient bands top -> bottom per time of day,
     // grey versions for bad weather, plus sun/moon/clouds/rain/snow colors.
     SKY: {
