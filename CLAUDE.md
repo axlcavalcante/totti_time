@@ -36,12 +36,13 @@ The newest Chrome available on KitKat is about v81, but the real device may be m
 
 ## File structure
 
-No modules exist, so files are loaded with plain `<script>` tags **in dependency order**. Everything hangs off a single global namespace, `window.MR` ("Morning Routine").
+No modules exist, so files are loaded **in dependency order** by a tiny loader in `index.html` that `document.write`s one `<script>` per file with a `?v=<timestamp>` cache-buster, so the browser never runs a stale copy (simple static servers send no cache headers). **Add new files to that list.** Everything hangs off a single global namespace, `window.MR` ("Morning Routine").
 
 ```
 index.html          // canvas + script tags, minimal CSS
 src/config.js       // scene list, labels, default durations, tuning constants
 src/palette.js      // Mega Drive palette, color ramps, red-alert palette mapping
+src/weather.js      // optional live sky (Open-Meteo), local sun math fallback
 src/font.js         // bitmap pixel font (drawn from data, no web fonts)
 src/sprites.js      // sprite data format + pre-render/cache utilities
 src/character.js    // THE kid: all body parts, expressions, outfits (reused everywhere)
@@ -52,10 +53,13 @@ src/scenes/teeth.js
 src/scenes/shoes.js
 src/ui.js           // time bar, buttons, touch hit-testing
 src/states.js       // state machine (options, transition, scene, gameover, end)
+src/testmode.js     // TEST MODE: jump to any screen, speed slider, END OF TIMER
 src/main.js         // boot, resize, main loop
 ```
 
 The game must run when `index.html` is served over plain HTTP (local network server or static hosting). Don't rely on anything that needs a backend.
+
+**Optional live sky (`src/weather.js`):** the bedroom window shows the real sky of Locmariaquer (`config.WEATHER`), meaning the current weather and time of day, from **Open-Meteo** (free, no API key). It uses `XMLHttpRequest` only (no `fetch`/`Promise`), tries https and then http (old KitKat devices may reject modern certificates), and has a 6 s timeout. The result is cached in `localStorage` and refreshed every 30 min. It **never blocks the game**: offline, sunrise and sunset are computed locally (NOAA equation) and the weather defaults to partly cloudy. Only the fixed city coordinates are sent. The sky canvas is rebuilt only when the look changes, never per frame. Dev override for testing: `?sky=rain&tod=dawn` (kinds: clear, partly, overcast, fog, rain, snow, storm; phases: night, dawn, day, dusk).
 
 ## Screen layout
 
@@ -75,9 +79,10 @@ OPTIONS -> TRANSITION(1) -> SCENE(1) --STOP--> TRANSITION(2) -> SCENE(2) ... SCE
 ```
 
 - **OPTIONS:** Five rows, one per scene, each with its label and `[-] mm:ss [+]` buttons. There is no text input, to avoid the Android keyboard. The step is 30 s and the range is 30 s–20 min. Values are saved to `localStorage` (inside try/catch) and restored on the next launch. A big START button is at the bottom.
-- **TRANSITION:** A ~2 s title card announcing the next scene's name, in a Flashback-style cinematic look (for example, letterbox bars sliding in, the name typed out letter by letter, then a wipe into the scene). **The timer does not run during transitions.**
+- **TRANSITION:** A stand-alone ~4 s title card (`TRANSITION_MS`) shown *before* the scene, full screen with no time bar or STOP. Letterbox bars slide in, "SCENE n/5" types out, the scene's French `title` from `config.js` (e.g. "L'HEURE DU BAIN") drops in letter by letter in the title font (`MR.font.title`: gradient, outline and shadow, derived from the UI glyphs), an underline grows, a shine sweeps across, then the bars close and the scene starts. **The timer does not run during transitions.** Taps are ignored.
 - **SCENE:** The looping animation, time bar and STOP button. The timer starts when the transition ends.
-- **GAMEOVER:** Shown when time reaches 0 before STOP is pressed. It displays a close-up of the kid **crying**, with clearly animated tears welling up and dropping from the eyes in a loop, and big "GAME OVER" text over it. A CONTINUE button goes to the next scene so the routine isn't blocked.
+- **GAMEOVER:** Shown when time reaches 0 before STOP. The **same kid** (the normal rig, drawn up to 4x) cries: sad brows and eyes shut tight (`eyes: 'cryA'/'cryB'`), a wailing mouth (`mouth: 'wailA'/'wailB'`) and sobbing dips. Tears well up in the outer eye corners (anchored to the baked `head.eyes` point), roll down the cheeks and drip off below the chin, with wet trails on the cheeks. Big red "GAME OVER" letters (title font, `red` color set) thud in. A CONTINUE button appears after 1.5 s and goes to the next scene's title card (OPTIONS after the last one) so the routine isn't blocked.
+- **GREAT JOB (`sceneDone`):** After STOP, the kid jumps with both arms up, lands and claps under falling confetti. After `GREAT_JOB_MS` (6 s, with a small fill bar) it goes **automatically** to the next scene's title card, or OPTIONS after the last scene until END exists. Taps are ignored.
 - **END:** A short "ALL DONE!" celebration with the kid happy, then a tap returns to OPTIONS.
 
 ## Timer logic
@@ -96,15 +101,16 @@ The **animation clock** advances by `dt * speed(progress)`, and the current fram
 ```
 speed(p) = 1                                   if p < 0.5
 speed(p) = 1 + (MAX_SPEED - 1) * ((p - 0.5) / 0.5)^2   if p >= 0.5   // smooth ease-in
-MAX_SPEED = 3   // tunable in config.js
+MAX_SPEED = 3.3   // tunable in config.js
 ```
 
-## Red alert (progress >= 98%)
+## Red alert (time almost up)
 
-- The whole screen (scene, bar and UI) switches to a **red high-contrast palette**. Each color is mapped to a red ramp by luminance: darks become deep red/black, lights become bright red/pink/white.
-- This is implemented by **pre-rendering a red variant of every cached sprite and background at startup**, then swapping which cache is drawn. It must never involve per-pixel work at runtime.
-- **Flashing:** alternate between the red palette and an inverted or brighter red frame. **Keep flashing at or below 3 flashes per second** (photosensitivity safety guideline). This is non-negotiable even if a faster rate "looks better".
-- On a short timer, 2% can be very brief (1.2 s for 60 s). That's expected.
+- **Trigger:** on while `remaining <= max(2% of the timer, min(5 s, 25% of the timer))`, so short timers still get a noticeable warning (`RED_ALERT`, `RED_ALERT_MIN_MS`, `RED_ALERT_MAX_FRAC` in `config.js`). Examples: 20 s timer -> last 5 s; 5 min -> last 6 s; 20 min -> last 24 s.
+- The whole screen (scene, bar area and UI) switches to a **red high-contrast palette**: each color is mapped to `MR.palette.RED_RAMP` by luminance (darks to deep red/black, lights to pink/white). STOP and the bar fill keep their own bright colors.
+- Implemented by **pre-rendering a red variant of every cached layer and sprite at scene init** with `MR.sprites.withRed(canvas)` (sets `canvas.red`). It uses `getImageData`, so it must **never** run in the frame loop. Scenes receive `render(ctx, clock, alert)` and draw `img.red` when `alert.red`. The UI swaps its color table with `MR.ui.setPalette(true)` (`MR.palette.UI_RED`).
+- **Smooth, not strobing:** the red version cross-fades in over `RED_FADE_MS` (300 ms). Then a sine "breathing" overlay of deep red pulses over the whole screen, speeding up from `RED_PULSE_HZ_MIN` (1.25 Hz) to `RED_PULSE_HZ_MAX` (2 Hz) as time runs out. Its phase is integrated so speed changes never jump. **It is hard-capped at `FLASH_HZ` = 3 flashes per second** (photosensitivity guideline). This is non-negotiable even if a faster rate "looks better".
+- **The kid gets worried:** scenes swap to `eyes: 'worried'` and `mouth: 'worried'` poses (pre-baked in `init`). The shower also shows a bobbing sweat drop.
 
 ## Art direction
 
@@ -125,16 +131,16 @@ He is a **white boy, about 6–7 years old**, with **slightly red/rosy cheeks** 
   - **legs** variants: underwear shorts, pants
   - **feet** variants: bare, socks, shoes
   - **arms/hands** in poses needed by the scenes (holding a spoon, a toothbrush, pulling on a shirt, and so on)
-- Proportions are chibi-leaning but not super-deformed: a full-body sprite is about **32×56 px** at native resolution. Close-ups (game over head, shoes scene feet) are **separate larger sprites** drawn to match the same palette and design.
+- Proportions are chibi-leaning but not super-deformed: a full-body sprite is about **32×56 px** at native resolution. Close-up moments reuse **the same rig drawn at a bigger scale** with extra part variants (never a separate model of the kid). Only the shoes scene's feet may need a dedicated larger sprite, drawn to match the same palette.
 - **Sprite data format:** arrays of strings where each character is a palette index (`.` = transparent). A single `buildSprite(data, palette)` function converts them into cached canvases (normal plus red-alert variants).
-- **Modesty rule:** the character is a child, so the shower scene must be fully non-revealing. Only the head and shoulders show above an opaque shower curtain or the tub edge, with steam and bubbles. In the dressing scene he starts in an undershirt and underwear shorts. Never draw him unclothed.
+- **Modesty rule:** the character is a child. His chest may be bare only in the bath/dressing contexts (`torso: 'bare'`), but **below the waist he is always covered**: the base underwear shorts are always drawn, and towels/pants go on top. The shower scene must be fully non-revealing. Only the head and shoulders show above an opaque shower curtain or the tub edge, with steam and bubbles. In the dressing scene he starts in an undershirt and underwear shorts. Never draw him unclothed.
 
 ### Scenes (each is an endless loop)
 
 The scene names below are defaults in `config.js` and are easy to rename or translate. The bitmap font must include French accented capitals (É È Ê À Ç Ô Î Ù) in case labels are translated.
 
 1. **SHOWER:** Bathroom tiles in the background. The kid's head and shoulders show above an opaque curtain. The loop: water streaming from the shower head, the kid scrubbing his hair with shampoo foam, bubbles floating up, steam drifting.
-2. **GETTING DRESSED:** Bedroom. The loop: he puts on the t-shirt (arms up, head pops through), then the pants (hop on one foot), then the socks (sitting on the bed edge), then resets. **No shoes in this scene.**
+2. **GETTING DRESSED (`src/scenes/dressing.js`):** His bedroom: star wallpaper, a curtained window, wall shelves with toys (a small red car, ball, teddy, robot, blocks) and his bed with a **small panda teddy next to the pillow**. The loop (steps x `DRESSING.TEMPO`): bare-chested with his bath towel around his waist down to the knees (underwear shorts always on beneath), he pulls his underwear on under it and drops the towel on the bed. He hops into his pants, sits on the bed edge (the seat height comes from the rig's `sit` legs), pulls the t-shirt over his head (head pops through, `tshirtRolled`) and puts on both socks (`sockLeft`, then `socks`), then the loop restarts. **No shoes in this scene.** Dressing stages use the pose `clothes: [...]` override, and props sit in his hands through each arm's `hand` point.
 3. **BREAKFAST:** Kitchen table seen from the side. The loop: spoon goes into the bowl, lifts to the mouth, he chews with cheeks puffing, and sips from a glass of milk now and then.
 4. **BRUSHING TEETH:** A bathroom mirror framing. The loop: toothbrush moves side to side, foam builds at the mouth, and he spits into the sink now and then.
 5. **SHOES (close-up):** A low camera near the floor showing only his lower legs and socked feet (same socks as scene 2). The loop: a foot slides into a shoe, he pulls the strap or tongue, closes the velcro, and switches feet.
@@ -142,6 +148,12 @@ The scene names below are defaults in `config.js` and are easy to rename or tran
 ## Sound
 
 Sound is out of scope for v1. If added later, it must be optional, use Web Audio with the `webkitAudioContext` fallback, and start only after a user tap (autoplay rules).
+
+## Test mode (`src/testmode.js`)
+
+The **TEST MODE** button on OPTIONS (header, bottom-right) (`config.SHOW_TEST_BUTTON`) opens a plain menu with one link per implemented screen: each scene, each scene's title card, GREAT JOB and GAME OVER. The list is built from `config.SCENES` plus `MR.scenes`, so new scenes appear automatically. A link shows **only the animation**, a **speed slider** (x0.25 to x4) and **BACK**. It never advances to another screen.
+- **Scenes** run on a test clock. **END OF TIMER** simulates the last 10 s of a 20 s timer with the real speed-up and red alert, using the shared `MR.timerFx`, the same code as the game.
+- **Full-screen states** (title, GREAT JOB, GAME OVER) are rendered with a virtual `MR.now`, swapped only during their render, and restarted in a loop. Their `update` is never called.
 
 ## How to work on this project
 

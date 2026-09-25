@@ -2,13 +2,15 @@
 var MR = window.MR = window.MR || {};
 
 MR.config = {
-  // Scene list, in play order. Labels are upper case for the bitmap font.
+  // Scene list, in play order. Upper case for the bitmap font. `label` is
+  // shown on OPTIONS, `title` on the cinematic title card before the scene
+  // (accents as \u escapes: \u00C9 = E acute, \u00C0 = A grave).
   SCENES: [
-    { id: 'shower',    label: 'SHOWER',          defaultSec: 300 },
-    { id: 'dressing',  label: 'GETTING DRESSED', defaultSec: 300 },
-    { id: 'breakfast', label: 'BREAKFAST',       defaultSec: 600 },
-    { id: 'teeth',     label: 'BRUSHING TEETH',  defaultSec: 180 },
-    { id: 'shoes',     label: 'SHOES',           defaultSec: 120 }
+    { id: 'shower',    label: 'SHOWER',          defaultSec: 300, title: 'L\'HEURE DU BAIN' },
+    { id: 'dressing',  label: 'GETTING DRESSED', defaultSec: 300, title: 'ON S\'HABILLE' },
+    { id: 'breakfast', label: 'BREAKFAST',       defaultSec: 600, title: 'LE PETIT-D\u00C9JEUNER' },
+    { id: 'teeth',     label: 'BRUSHING TEETH',  defaultSec: 180, title: 'BROSSE \u00C0 DENTS' },
+    { id: 'shoes',     label: 'SHOES',           defaultSec: 120, title: 'LES CHAUSSURES' }
   ],
 
   // Options screen timer range
@@ -37,11 +39,18 @@ MR.config = {
   IDLE_WAVE_CYCLES: 3,
 
   // Scene playback (future tasks)
-  MAX_SPEED: 3,
+  MAX_SPEED: 3.3,
   SPEED_RAMP_START: 0.5,
+  // Red alert: on while remaining <= max(RED_ALERT share, min(MIN_MS,
+  // MAX_FRAC of the timer)), so short timers still get a noticeable warning.
   RED_ALERT: 0.98,
-  FLASH_HZ: 3,           // never above 3 (photosensitivity)
-  TRANSITION_MS: 2000,
+  RED_ALERT_MIN_MS: 5000,
+  RED_ALERT_MAX_FRAC: 0.25,
+  RED_FADE_MS: 300,      // cross-fade into the red palette
+  RED_PULSE_HZ_MIN: 1.25, // smooth pulse speeds up as time runs out...
+  RED_PULSE_HZ_MAX: 2,
+  FLASH_HZ: 3,           // ...but never above 3 (photosensitivity hard cap)
+  TRANSITION_MS: 4000,   // title card before each scene; the timer waits
   MAX_DT: 100,           // anim clock never jumps more than this per frame (ms)
 
   // Time bar: color from each threshold of progress upward (MR.palette.UI keys)
@@ -58,11 +67,38 @@ MR.config = {
   SCENE_PAD: 4,
   SCENE_STOP_MAX_H: 90,
 
+  // Live sky in the bedroom window (optional; see src/weather.js)
+  WEATHER: {
+    CITY: 'LOCMARIAQUER',
+    LAT: 47.5697,
+    LON: -2.9458,
+    REFRESH_MIN: 30,
+    TIMEOUT_MS: 6000
+  },
+
+  // GREAT JOB screen: shown after STOP, then the next scene starts by itself
+  GREAT_JOB_MS: 6000,
+
+  // GAME OVER screen
+  GAMEOVER: {
+    KID_SCALE: 4,        // the same kid, drawn bigger (shrinks to 3/2 if short)
+    TEAR_PERIOD: 900,    // one tear per eye per period (right eye offset half)
+    CONTINUE_AT: 1500    // CONTINUE appears (and becomes tappable) after this
+  },
+
   // Per-scene tuning
+  DRESSING: {
+    KID_SCALE: 2,
+    FLOOR_Y: 196,        // where his feet touch the floor
+    TEMPO: 1.25          // step durations x1.25 = 20% slower loop
+  },
   SHOWER: {
     KID_SCALE: 2,        // kid pixel size inside the 256x224 scene
     RIM_Y: 150           // top of the bathtub rim
   },
+
+  // Small TEST button on OPTIONS -> test mode (jump to any screen)
+  SHOW_TEST_BUTTON: true,
 
   // Dev checks (palette budget, missing overlays). tools/ pages turn it on.
   DEV: false

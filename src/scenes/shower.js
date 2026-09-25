@@ -2,8 +2,10 @@
 // scrubbing shampoo into his hair. ES5 only.
 //
 // Interface used by the SCENE state (states.js):
-//   init()              pre-renders everything, once
-//   render(ctx, clock)  draws the 256x224 scene at (0, 0); clock = anim ms
+//   init()                     pre-renders everything (and red variants), once
+//   render(ctx, clock, alert)  draws the 256x224 scene at (0, 0); clock = anim
+//                              ms; alert.red = draw the red-alert version
+//                              (red caches, worried kid, sweat drop)
 //
 // Modesty: the pose uses torso 'bath' (neck + shoulders only), legs 'hidden'
 // and no feet, AND the tub front is drawn over everything below the shoulders.
@@ -17,7 +19,7 @@ MR.scenes = MR.scenes || {};
   var S, RIM_Y, NECK_Y;          // from config at init
   var bgBack, bgFront;           // pre-rendered layers
   var streams = [], foam = [], splash = [], bubbleImg = [], steamImg = [];
-  var steps = [], stepDur = [];
+  var steps = [], worried = [], stepDur = [], sweat = null;
   var hairTopY = 0, headTopY = 0;
 
   // ------------------------------------------------------------ helpers
@@ -147,6 +149,15 @@ MR.scenes = MR.scenes || {};
      'q...q.........q....q',
      '....................']
   ];
+
+  // Sweat drop beside his head during the red alert (kid pixels).
+  var SWEAT = [
+    '..q..',
+    '.qq..',
+    '.qQq.',
+    'qQQjq',
+    'qQjjq',
+    '.qqq.'];
 
   var BUBBLES = [
     ['.u.',
@@ -377,7 +388,7 @@ MR.scenes = MR.scenes || {};
   // ------------------------------------------------------------ init/render
 
   function init() {
-    var fx = P.fx, i, back, front, b, neck, top;
+    var fx = P.fx, i, back, front, b, top;
     S = MR.config.SHOWER.KID_SCALE;
     RIM_Y = MR.config.SHOWER.RIM_Y;
     NECK_Y = RIM_Y - 5 * S;            // torso rows 5+ sit behind the rim
@@ -402,16 +413,23 @@ MR.scenes = MR.scenes || {};
     steamImg.push(MR.sprites.buildSprite(steamData(32, 14), fx));
     steamImg.push(MR.sprites.buildSprite(steamData(24, 10), fx));
 
-    // Pre-bake every kid pose of the loop and where to draw it.
+    sweat = MR.sprites.buildSprite(SWEAT, fx);
+
+    // Pre-bake every kid pose of the loop (normal + worried) and where to draw it.
+    function place(b, foamIdx) {
+      var n = b.points['torso.neck'];
+      return {
+        img: MR.sprites.withRed(b.canvas),
+        x: Math.round(CX - n[0] * S),
+        y: Math.round(NECK_Y - n[1] * S),
+        foam: foamIdx
+      };
+    }
     for (i = 0; i < TIMELINE.length; i++) {
       b = MR.character.bake(pose(TIMELINE[i].armL, TIMELINE[i].armR, TIMELINE[i].eyes, TIMELINE[i].mouth));
-      neck = b.points['torso.neck'];
-      steps.push({
-        img: b.canvas,
-        x: Math.round(CX - neck[0] * S),
-        y: Math.round(NECK_Y - neck[1] * S),
-        foam: TIMELINE[i].foam
-      });
+      steps.push(place(b, TIMELINE[i].foam));
+      worried.push(place(MR.character.bake(pose(TIMELINE[i].armL, TIMELINE[i].armR, 'worried', 'worried')),
+        TIMELINE[i].foam));
       stepDur.push(TIMELINE[i].dur);
       if (i === 0) {
         top = b.points['head.top'];
@@ -419,21 +437,40 @@ MR.scenes = MR.scenes || {};
         hairTopY = headTopY - 2 * S;   // wet hair starts 2 rows above the head
       }
     }
+
+    // Red-alert variants of every cached layer (getImageData: init only).
+    MR.sprites.withRed(bgBack);
+    MR.sprites.withRed(bgFront);
+    MR.sprites.withRed(sweat);
+    [streams, foam, splash, bubbleImg, steamImg].forEach(function (list) {
+      list.forEach(function (c) { MR.sprites.withRed(c); });
+    });
   }
+
+  var red = false;                     // set per render call
+  function im(c) { return red ? c.red : c; }
 
   function drawStream(ctx, x, y0, y1, frame, width) {
     var len = Math.min(y1 - y0, 120);
-    if (len > 0) { ctx.drawImage(streams[frame], 0, 0, width, len, x, y0, width, len); }
+    if (len > 0) { ctx.drawImage(im(streams[frame]), 0, 0, width, len, x, y0, width, len); }
   }
 
-  function render(ctx, clock) {
-    var st = steps[MR.sprites.frameAt(stepDur, clock)], wf = Math.floor(clock / 60) % 4,
+  function render(ctx, clock, alert) {
+    var idx = MR.sprites.frameAt(stepDur, clock), st, wf = Math.floor(clock / 60) % 4,
       i, dx, stop, b, y, img, f;
+    red = !!(alert && alert.red);
+    st = red ? worried[idx] : steps[idx];
 
-    ctx.drawImage(bgBack, 0, 0);
+    ctx.drawImage(im(bgBack), 0, 0);
 
     // the kid
-    ctx.drawImage(st.img, st.x, st.y, st.img.width * S, st.img.height * S);
+    ctx.drawImage(im(st.img), st.x, st.y, st.img.width * S, st.img.height * S);
+
+    // sweat drop, bobbing beside his head (red alert only)
+    if (red) {
+      ctx.drawImage(sweat.red, CX + 9 * S, headTopY + 4 * S + Math.round(Math.sin(clock * 0.008) * S),
+        sweat.width * S, sweat.height * S);
+    }
 
     // water from the nozzles down to the (rounded) top of his hair
     for (dx = -11; dx <= 9; dx += 4) {
@@ -447,21 +484,21 @@ MR.scenes = MR.scenes || {};
 
     // shampoo foam on the hair (in kid pixels)
     if (st.foam >= 0) {
-      img = foam[st.foam];
+      img = im(foam[st.foam]);
       ctx.drawImage(img, CX - 8 * S, headTopY + 3 * S - img.height * S, img.width * S, img.height * S);
     }
 
     // splash where the water hits
-    img = splash[Math.floor(clock / 110) % 3];
+    img = im(splash[Math.floor(clock / 110) % 3]);
     ctx.drawImage(img, CX - 10, hairTopY - 7);
 
-    ctx.drawImage(bgFront, 0, 0);
+    ctx.drawImage(im(bgFront), 0, 0);
 
     // bubbles rise from the tub
     for (i = 0; i < BUBBLE_PATHS.length; i++) {
       b = BUBBLE_PATHS[i];
       y = RIM_Y - 4 - ((clock * b.v + b.ph) % BUBBLE_RANGE);
-      img = bubbleImg[b.size];
+      img = im(bubbleImg[b.size]);
       ctx.drawImage(img, Math.round(b.x + Math.sin(clock * 0.003 + b.ph) * b.sway), Math.round(y));
     }
 
@@ -469,7 +506,7 @@ MR.scenes = MR.scenes || {};
     for (i = 0; i < STEAM_PATHS.length; i++) {
       f = STEAM_PATHS[i];
       y = RIM_Y - 10 - ((clock * f.v + f.ph) % STEAM_RANGE);
-      img = steamImg[f.img];
+      img = im(steamImg[f.img]);
       ctx.drawImage(img, Math.round(f.x + Math.sin(clock * 0.001 + f.ph) * 6), Math.round(y));
     }
   }

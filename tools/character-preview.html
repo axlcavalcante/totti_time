@@ -45,6 +45,29 @@
       armL: a[0], armR: a[1], eyes: a[2], mouth: a[3], order: ch.ORDER_ARMS_FRONT });
     add('bath / ' + a.join(' '), b.canvas, b.ax, b.ay);
   });
+  [
+    ['towel (bare chest)', { torso: 'bare', clothes: ['towelWrap'], armL: 'holdLow', armR: 'holdLow' }],
+    ['bare + shirt', { torso: 'bare', clothes: ['pants', 'tshirt'] }],
+    ['bare + rolled', { torso: 'bare', clothes: ['pants', 'tshirtRolled'], armL: 'waveUp', armR: 'waveUp' }],
+    ['pants half (stand)', { clothes: ['pantsHalf'] }],
+    ['pants half (hop)', { clothes: ['pantsHalf'], legs: 'hop', feet: 'hop', armL: 'holdLow', armR: 'holdLow' }],
+    ['pants (hop)', { clothes: ['pants'], legs: 'hop', feet: 'hop' }],
+    ['sit + pants', { clothes: ['pants'], legs: 'sit' }],
+    ['shirt rolled', { clothes: ['pants', 'tshirtRolled'], legs: 'sit', armL: 'waveUp', armR: 'waveUp' }],
+    ['shirt on', { clothes: ['pants', 'tshirt'], legs: 'sit', armL: 'holdLow', armR: 'holdLow' }],
+    ['lift L', { clothes: ['pants', 'tshirt'], legs: 'sitLiftL', feet: 'liftL', armL: 'reachDown', armR: 'reachDown' }],
+    ['sock L + lift R', { clothes: ['pants', 'tshirt', 'sockLeft'], legs: 'sitLiftR', feet: 'liftR', armL: 'reachDown', armR: 'reachDown' }],
+    ['socks, sit', { clothes: ['pants', 'tshirt', 'socks'], legs: 'sit' }]
+  ].forEach(function (a) {
+    var pose = { outfit: 'underwear' }, k2;
+    for (k2 in a[1]) { pose[k2] = a[1][k2]; }
+    var b = ch.bake(pose);
+    add('dress / ' + a[0], b.canvas, b.ax, b.ay);
+  });
+  [['cryA', 'wailA'], ['cryB', 'wailB'], ['worried', 'worried']].forEach(function (a) {
+    var b = ch.bake({ outfit: 'ready', eyes: a[0], mouth: a[1] });
+    add('ready / ' + a.join(' '), b.canvas, b.ax, b.ay);
+  });
 
   // Raw parts
   var map = MR.palette.merge(MR.palette.CHARACTER_BODY, MR.palette.OUTFIT_COLORS['default']);

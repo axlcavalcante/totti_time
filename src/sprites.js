@@ -66,6 +66,28 @@ var MR = window.MR = window.MR || {};
     return n;
   }
 
+  // Red-alert variant of a canvas: each pixel's luminance mapped to the red
+  // ramp. Uses getImageData, so call it at INIT ONLY, never in the frame loop.
+  function makeRed(canvas) {
+    var c = createCanvas(canvas.width, canvas.height), ctx = c.getContext('2d'), img, d, i, rc;
+    ctx.drawImage(canvas, 0, 0);
+    img = ctx.getImageData(0, 0, c.width, c.height);
+    d = img.data;
+    for (i = 0; i < d.length; i += 4) {
+      if (d[i + 3] === 0) { continue; }
+      rc = MR.palette.redFor(d[i], d[i + 1], d[i + 2]);
+      d[i] = rc[0]; d[i + 1] = rc[1]; d[i + 2] = rc[2];
+    }
+    ctx.putImageData(img, 0, 0);
+    return c;
+  }
+
+  // Attaches canvas.red (init only) and returns the canvas.
+  function withRed(canvas) {
+    if (!canvas.red) { canvas.red = makeRed(canvas); }
+    return canvas;
+  }
+
   // Index of the current frame in a looping list of frame durations (ms).
   function frameAt(durations, clock) {
     var total = 0, i, t;
@@ -80,6 +102,8 @@ var MR = window.MR = window.MR || {};
 
   MR.sprites = {
     frameAt: frameAt,
+    makeRed: makeRed,
+    withRed: withRed,
     createCanvas: createCanvas,
     setSmoothing: setSmoothing,
     buildSprite: buildSprite,

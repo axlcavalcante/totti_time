@@ -2,13 +2,23 @@
 var MR = window.MR = window.MR || {};
 
 (function () {
-  var C = MR.palette.UI;
+  var C = MR.palette.UI, STYLES;
 
-  var STYLES = {
-    normal: { face: C.btnFace,   pressed: C.btnPressed, light: C.bevelLight, dark: C.bevelDark },
-    start:  { face: C.startFace, pressed: C.startPress, light: C.startLight, dark: C.startDark },
-    stop:   { face: C.stopFace,  pressed: C.stopPress,  light: C.stopLight,  dark: C.stopDark }
-  };
+  function stylesFor(P) {
+    return {
+      normal: { face: P.btnFace,   pressed: P.btnPressed, light: P.bevelLight, dark: P.bevelDark },
+      start:  { face: P.startFace, pressed: P.startPress, light: P.startLight, dark: P.startDark },
+      stop:   { face: P.stopFace,  pressed: P.stopPress,  light: P.stopLight,  dark: P.stopDark }
+    };
+  }
+  var STYLE_SETS = { normal: stylesFor(MR.palette.UI), red: stylesFor(MR.palette.UI_RED) };
+  STYLES = STYLE_SETS.normal;
+
+  // Red alert: swap every UI color for its red-mapped copy (and back).
+  function setPalette(red) {
+    C = red ? MR.palette.UI_RED : MR.palette.UI;
+    STYLES = red ? STYLE_SETS.red : STYLE_SETS.normal;
+  }
 
   // opts: { x, y, w, h, label, style, labelScale, onPress, fireOnDown, repeat }
   function button(opts) {
@@ -115,6 +125,7 @@ var MR = window.MR = window.MR || {};
   }
 
   MR.ui = {
+    setPalette: setPalette,
     button: button,
     setRect: setRect,
     contains: contains,
