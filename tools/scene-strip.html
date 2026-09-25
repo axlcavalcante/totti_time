@@ -4,8 +4,9 @@
 <body>
 <script>
 // Dev only: renders a filmstrip of one scene. ?scene=teeth&t=0,500,...&red=1
+// (&sky=<kind>&tod=<phase> force a window-sky look)
 (function () {
-  var files = ['config','palette','weather','font','sprites','character','sky','scenes/shower','scenes/dressing','scenes/breakfast','scenes/teeth','ui'];
+  var files = ['config','palette','weather','font','sprites','character','sky','scenes/shower','scenes/dressing','scenes/breakfast','scenes/teeth','scenes/shoes','ui'];
   for (var i = 0; i < files.length; i++) { document.write('<script src="../src/' + files[i] + '.js?v=' + Date.now() + '"><\/script>'); }
 }());
 </script>
@@ -16,6 +17,7 @@
   var red = /red=1/.test(q), cols = 4;
   MR.config.DEV = true;
   MR.font.init();
+  if (MR.weather) { MR.weather.start(); }      // live sky (+ ?sky=rain&tod=dawn overrides)
   var m = MR.scenes[id]; m.init();
   var strip = document.createElement('canvas'); strip.width = 258 * cols; strip.height = 226 * Math.ceil(times.length / cols);
   var sx = strip.getContext('2d');

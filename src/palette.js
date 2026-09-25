@@ -299,6 +299,51 @@ var MR = window.MR = window.MR || {};
       })
     },
 
+    // SHOES scene (house entrance, same camera as the bedroom). <= 15 each.
+    SHOES: {
+      entry: makeMap({
+        k: [36, 36, 73],
+        y: [219, 182, 146],  // warm wall
+        Y: [182, 146, 109],
+        w: [255, 255, 255],  // baseboard, door frame
+        f: [182, 109, 36],   // floor wood
+        F: [146, 73, 36],
+        l: [219, 146, 73],
+        t: [36, 109, 109],   // front door
+        T: [0, 73, 73],
+        x: [146, 146, 182],  // metal (handle, hooks, pane frame)
+        m: [182, 146, 73],   // doormat
+        M: [146, 109, 36],
+        r: [109, 146, 219],  // rug
+        R: [73, 109, 182]
+      }),
+      things: makeMap({
+        k: [36, 36, 73],
+        w: [255, 255, 255],
+        c: [36, 73, 182],    // coat
+        C: [0, 36, 109],
+        s: [255, 219, 73],   // scarf, keys
+        S: [219, 146, 36],
+        u: [219, 36, 36],    // umbrella
+        U: [146, 0, 36],
+        o: [182, 109, 36],   // console table, picture frame
+        O: [109, 73, 36],
+        g: [73, 182, 73],    // plant
+        G: [36, 109, 36],
+        p: [146, 219, 255],  // picture (sea and sky)
+        P: [73, 146, 219]
+      }),
+      // the little cat: light brown back/head/ears/tail, white underneath
+      cat: makeMap({
+        k: [36, 36, 73],
+        b: [219, 146, 109],
+        B: [182, 109, 73],
+        w: [255, 255, 255],
+        v: [219, 219, 219],
+        p: [255, 146, 146]
+      })
+    },
+
     // Window sky (MR.weather): gradient bands top -> bottom per time of day,
     // grey versions for bad weather, plus sun/moon/clouds/rain/snow colors.
     SKY: {

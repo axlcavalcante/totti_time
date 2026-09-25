@@ -249,6 +249,18 @@ var MR = window.MR = window.MR || {};
           rep(3, 'ksssSk..ksssSk'),
           rep(3, 'ksssSk........'))
       },
+      // Front-view squat (putting on shoes): knees out, short, feet 'bare'.
+      crouch: {
+        pivot: [9, 0],
+        points: { hips: [9, 0], feet: [2, 7], ground: [9, 10] },
+        data: ['..kWWWWWWWWWWWWk..',
+               '.kwWWWWkkkkWWWWWk.',
+               'kkkkkk......kkkkkk',
+               'ksssSk......ksssSk',
+               '.ksssSk....ksssSk.',
+               '..ksssSk..ksssSk..',
+               '..ksssSk..ksssSk..']
+      },
       // Transparent, same rig points: for shots where the legs are out of
       // frame (bath, close-ups). Keeps the rig root and ground anchor.
       hidden: {
@@ -596,6 +608,13 @@ var MR = window.MR = window.MR || {};
           rep(8, 'kpppPk..kpppPk'),
           ['kPPPPk..kPPPPk']),
         hidden: rep(13, '..............'),   // legs out of frame (under the table)
+        crouch: ['..kPPPPPPPPPPPPk..',
+                 '.kpppppkkkkpppppk.',
+                 'kppppk......kppppk',
+                 'kpppPk......kpppPk',
+                 '.kpppPk....kpppPk.',
+                 '..kpppPk..kpppPk..',
+                 '..kPPPPk..kPPPPk..'],
         hop: rows(
           ['kPPPPPPPPPPPPk',
            'kPPPPPPPPPPPPk',
@@ -643,6 +662,15 @@ var MR = window.MR = window.MR || {};
         bare: ['................',
                'knnwnnk..knnwnnk',
                '.kkkkk....kkkkk.']
+      }
+    },
+
+    // One shoe on (left foot only), while he puts on the second one.
+    shoeLeft: {
+      feet: {
+        bare: ['................',
+               'knnwnnk.........',
+               '.kkkkk..........']
       }
     }
   };
