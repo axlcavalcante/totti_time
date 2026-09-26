@@ -152,9 +152,19 @@ var MR = window.MR = window.MR || {};
     };
   }
 
+  // Test mode: force a phase ('night'|'dawn'|'day'|'dusk') and/or a weather
+  // kind; null = automatic (real data). Never saved.
+  function setOverride(phase, kind) {
+    override.phase = phase || null;
+    override.kind = kind || null;
+    MR.weather.version++;
+  }
+
   MR.weather = {
     version: 0,
     start: start,
+    setOverride: setOverride,
+    getOverride: function () { return { phase: override.phase || null, kind: override.kind || null }; },
     sky: sky,
     sunTimes: sunTimes,
     kindFor: kindFor,
