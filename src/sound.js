@@ -4,7 +4,9 @@
 //
 // Backends, feature-detected: Web Audio (AudioContext / webkitAudioContext,
 // files fetched with XMLHttpRequest and decoded with the callback form of
-// decodeAudioData), else one <audio> element per sound, else silence.
+// decodeAudioData), else one <audio> element per sound, else silence. A page
+// opened from disk (file://) uses <audio> directly (Chrome blocks XHR there),
+// and any sound Web Audio fails to load or decode falls back to <audio>.
 // Audio only starts after a user tap (autoplay rules): main.js calls
 // MR.sound.unlock() from every touch/mouse down/up. A sound problem must
 // never break the timer, so everything is wrapped in try/catch.
@@ -38,29 +40,68 @@ var MR = window.MR = window.MR || {};
     if (promiseLike && typeof promiseLike['catch'] === 'function') { promiseLike['catch'](function () {}); }
   }
 
+  // ----- <audio> elements: the fallback for any sound Web Audio can't load
+  // (page opened from disk as file://, where Chrome blocks XMLHttpRequest;
+  // old WebViews without Web Audio; a file the decoder rejects)
+
+  function makeElement(name, path) {
+    var el;
+    if (elements[name] || !window.Audio) { return; }
+    el = new window.Audio();
+    el.preload = 'auto';
+    el.src = url(path);
+    elements[name] = el;
+  }
+
+  function playElement(name) {
+    var el = elements[name];
+    el.primed = true;
+    try { el.currentTime = 0; } catch (e) { /* not seekable yet */ }
+    el.volume = cfg.VOLUME;
+    quiet(el.play());
+  }
+
+  // Old Android wants one gesture per element: play/pause each at volume 0.
+  function primeElements() {
+    var name, el;
+    for (name in elements) {
+      if (elements.hasOwnProperty(name) && !elements[name].primed) {
+        el = elements[name];
+        el.primed = true;
+        el.volume = 0;
+        quiet(el.play());
+        el.pause();
+      }
+    }
+  }
+
   // ----- Web Audio
 
   function loadBuffer(name, path) {
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', url(path), true);
-    xhr.responseType = 'arraybuffer';
-    xhr.onload = function () {
-      if (xhr.status && xhr.status !== 200) { warn(path + ': HTTP ' + xhr.status); return; }
-      try {
-        ctx.decodeAudioData(xhr.response,
-          function (b) { buffers[name] = b; },
-          function () { warn(path + ': cannot decode (try WAV or MP3)'); });
-      } catch (e) { warn(path + ': ' + e.message); }
-    };
-    xhr.onerror = function () { warn(path + ': not found'); };
-    xhr.send();
+    function fallback(why) {
+      warn(path + ': ' + why + ', using <audio> instead');
+      makeElement(name, path);
+    }
+    try {
+      xhr.open('GET', url(path), true);
+      xhr.responseType = 'arraybuffer';
+      xhr.onload = function () {
+        if ((xhr.status && xhr.status !== 200) || !xhr.response) { fallback('HTTP ' + xhr.status); return; }
+        try {
+          ctx.decodeAudioData(xhr.response,
+            function (b) { buffers[name] = b; },
+            function () { fallback('cannot decode (try WAV or MP3)'); });
+        } catch (e) { fallback(e.message); }
+      };
+      xhr.onerror = function () { fallback('cannot load'); };
+      xhr.send();
+    } catch (e) { fallback(e.message); }
   }
 
   function playBuffer(name) {
-    var b = buffers[name], src, gain;
-    if (!b) { return; }
-    src = ctx.createBufferSource();
-    src.buffer = b;
+    var src = ctx.createBufferSource(), gain;
+    src.buffer = buffers[name];
     gain = ctx.createGain ? ctx.createGain() : ctx.createGainNode();
     gain.gain.value = cfg.VOLUME;
     src.connect(gain);
@@ -68,39 +109,25 @@ var MR = window.MR = window.MR || {};
     if (src.start) { src.start(0); } else { src.noteOn(0); }
   }
 
-  // ----- <audio> fallback
-
-  function playElement(name) {
-    var el = elements[name];
-    if (!el) { return; }
-    try { el.currentTime = 0; } catch (e) { /* not seekable yet */ }
-    el.volume = cfg.VOLUME;
-    quiet(el.play());
-  }
-
   // ----- public
 
   function load() {
-    var AC = window.AudioContext || window.webkitAudioContext, name, el;
+    var AC = window.AudioContext || window.webkitAudioContext, name,
+      fromDisk = window.location.protocol === 'file:';
     if (loaded) { return; }
     loaded = true;
     readEnabled();
     try {
-      if (AC) {
+      if (AC && !fromDisk) {
         ctx = new AC();
         mode = 'webaudio';
-        for (name in cfg.FILES) {
-          if (cfg.FILES.hasOwnProperty(name)) { loadBuffer(name, cfg.FILES[name]); }
-        }
       } else if (window.Audio) {
         mode = 'element';
-        for (name in cfg.FILES) {
-          if (cfg.FILES.hasOwnProperty(name)) {
-            el = new window.Audio();
-            el.preload = 'auto';
-            el.src = url(cfg.FILES[name]);
-            elements[name] = el;
-          }
+      }
+      for (name in cfg.FILES) {
+        if (cfg.FILES.hasOwnProperty(name)) {
+          if (mode === 'webaudio') { loadBuffer(name, cfg.FILES[name]); }
+          else if (mode === 'element') { makeElement(name, cfg.FILES[name]); }
         }
       }
     } catch (e) {
@@ -111,27 +138,19 @@ var MR = window.MR = window.MR || {};
 
   // Call from inside a user gesture. Cheap after the first success.
   function unlock() {
-    var name, el, src;
+    var src;
     try {
-      if (mode === 'webaudio') {
+      if (ctx) {
         if (ctx.state === 'suspended' && ctx.resume) { quiet(ctx.resume()); }
-        if (unlocked) { return; }
-        unlocked = true;
-        src = ctx.createBufferSource();             // 1-sample silent kick
-        src.buffer = ctx.createBuffer(1, 1, 22050);
-        src.connect(ctx.destination);
-        if (src.start) { src.start(0); } else { src.noteOn(0); }
-      } else if (mode === 'element' && !unlocked) {
-        unlocked = true;
-        for (name in elements) {                    // old Android: one gesture per element
-          if (elements.hasOwnProperty(name)) {
-            el = elements[name];
-            el.volume = 0;
-            quiet(el.play());
-            el.pause();
-          }
+        if (!unlocked) {
+          src = ctx.createBufferSource();           // 1-sample silent kick
+          src.buffer = ctx.createBuffer(1, 1, 22050);
+          src.connect(ctx.destination);
+          if (src.start) { src.start(0); } else { src.noteOn(0); }
         }
       }
+      unlocked = true;
+      primeElements();                              // also fallbacks added later
     } catch (e) { warn('unlock: ' + e.message); }
   }
 
@@ -139,7 +158,7 @@ var MR = window.MR = window.MR || {};
   function play(name, force) {
     if (!enabled && !force) { return; }
     try {
-      if (mode === 'webaudio') { playBuffer(name); } else if (mode === 'element') { playElement(name); }
+      if (buffers[name] && ctx) { playBuffer(name); } else if (elements[name]) { playElement(name); }
     } catch (e) { warn('play ' + name + ': ' + e.message); }
   }
 
@@ -164,6 +183,11 @@ var MR = window.MR = window.MR || {};
     cues: cues,
     setEnabled: setEnabled,
     isEnabled: function () { return enabled; },
-    mode: function () { return mode; }
+    // 'webaudio', 'element' or 'none' (+ which sounds fell back to <audio>)
+    mode: function () {
+      var n, fb = [];
+      for (n in elements) { if (elements.hasOwnProperty(n) && mode === 'webaudio') { fb.push(n); } }
+      return mode + (fb.length ? ' (<audio> for ' + fb.join(', ') + ')' : '');
+    }
   };
 }());

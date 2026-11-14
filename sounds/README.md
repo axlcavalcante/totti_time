@@ -25,6 +25,7 @@ Tips for the old Android 4.4 tablet or phone:
 
 - Use **WAV** or **MP3**. Avoid OGG, OPUS and M4A.
 - Keep sounds **short** (under 2 seconds) and small (under ~200 KB).
+- Sounds work both from a web server and when `index.html` is opened directly from disk.
 - If a file is missing or can't be decoded, the game keeps working silently.
 - Sound can be switched off on the OPTIONS screen (SOUND ON/OFF), and the volume is `SOUND.VOLUME` in `src/config.js`.
 - To try your sounds, open `tools/sound-preview.html`.
