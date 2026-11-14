@@ -18,6 +18,7 @@ MR.config = {
   MIN_SEC: 30,
   MAX_SEC: 1200,
   STORAGE_KEY: 'MR.durations.v1',
+  PLAYLIST_KEY: 'MR.playlist.v1',   // which scenes play, and in which order
 
   // Layout
   NATIVE_W: 256,       // Mega Drive H32 width
@@ -115,6 +116,20 @@ MR.config = {
   SHOWER: {
     KID_SCALE: 2,        // kid pixel size inside the 256x224 scene
     RIM_Y: 150           // top of the bathtub rim
+  },
+
+  // Notification sounds: plain files in sounds/ (replace them freely, see
+  // sounds/README.md). HALF_AT / HURRY_AT are shares of the scene's timer.
+  SOUND: {
+    ENABLED: true,       // default; the OPTIONS SOUND ON/OFF button overrides it
+    VOLUME: 0.7,
+    HALF_AT: 0.5,        // bells: half of the time is gone
+    HURRY_AT: 0.9,       // hurry: 10% of the time is left
+    FILES: {
+      bells: 'sounds/bells.wav',
+      hurry: 'sounds/hurry.wav',
+      levelUp: 'sounds/level-up.wav'   // STOP pressed in time
+    }
   },
 
   // Small TEST button on OPTIONS -> test mode (jump to any screen)

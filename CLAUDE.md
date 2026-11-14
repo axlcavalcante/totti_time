@@ -4,7 +4,7 @@
 
 This is a browser "game" that is really a **sequenced timer** for a child's morning routine, with Sega Mega Drive / Genesis–style pixel art. The art direction is inspired by *Flashback: The Quest for Identity*, meaning cinematic framing, smooth rotoscoped-feeling animation, and muted but rich palettes. All art is original; nothing from Flashback is copied.
 
-The flow goes like this. The player sets five timers on an options screen. Five scenes then play in order. Each scene shows a looping animation of the same kid character, with a shrinking time bar and a STOP button underneath. Pressing STOP moves on to the next scene. If the timer runs out before STOP is pressed, a GAME OVER screen appears showing the kid crying.
+The flow goes like this. On the options screen the player sets five timers, picks which scenes to play (checkboxes) and their order (numbered dropdowns). The chosen scenes then play in that order. Each scene shows a looping animation of the same kid character, with a shrinking time bar and a STOP button underneath. Pressing STOP moves on to the next scene. If the timer runs out before STOP is pressed, a GAME OVER screen appears showing the kid crying.
 
 ## HARD CONSTRAINT: target device
 
@@ -54,10 +54,12 @@ src/scenes/breakfast.js
 src/scenes/teeth.js
 src/scenes/shoes.js
 src/scenes/end.js   // END screen art (house front, school bag, hydrangea)
-src/ui.js           // time bar, buttons, touch hit-testing
+src/ui.js           // time bar, buttons, checkbox, dropdown, touch hit-testing
+src/sound.js        // notification sounds: plays the files in sounds/ (MR.sound)
 src/states.js       // state machine (options, transition, scene, gameover, end)
 src/testmode.js     // TEST MODE: jump to any screen, speed slider, END OF TIMER
 src/main.js         // boot, resize, main loop
+sounds/             // bells.wav, hurry.wav, level-up.wav + README (user-replaceable)
 ```
 
 The game must run when `index.html` is served over plain HTTP (local network server or static hosting). Don't rely on anything that needs a backend.
@@ -77,13 +79,15 @@ The game is designed for **portrait** orientation on a phone and recomputes its 
 ## State machine
 
 ```
-OPTIONS -> TRANSITION(1) -> SCENE(1) --STOP--> TRANSITION(2) -> SCENE(2) ... SCENE(5) --STOP--> END -> OPTIONS
-                                 \--time runs out--> GAMEOVER --tap CONTINUE--> TRANSITION(next) (or END after scene 5)
+OPTIONS -> TRANSITION(1) -> SCENE(1) --STOP--> GREAT JOB -> TRANSITION(2) -> SCENE(2) ... SCENE(k) --STOP--> END -> OPTIONS
+                                 \--time runs out--> GAMEOVER --tap CONTINUE--> TRANSITION(next) (or OPTIONS after the last)
 ```
 
-- **OPTIONS:** Five rows, one per scene, each with its label and `[-] mm:ss [+]` buttons. There is no text input, to avoid the Android keyboard. The step is 30 s and the range is 30 s–20 min. Values are saved to `localStorage` (inside try/catch) and restored on the next launch. A big START button is at the bottom.
-- **TRANSITION:** A stand-alone ~4 s title card (`TRANSITION_MS`) shown *before* the scene, full screen with no time bar or STOP. Letterbox bars slide in, "SCENE n/5" types out, the scene's French `title` from `config.js` (e.g. "L'HEURE DU BAIN") drops in letter by letter in the title font (`MR.font.title`: gradient, outline and shadow, derived from the UI glyphs), an underline grows, a shine sweeps across, then the bars close and the scene starts. **The timer does not run during transitions.** Taps are ignored.
-- **SCENE:** The looping animation, time bar and STOP button. The timer starts when the transition ends.
+**Playlist:** the scenes that play, and their order, come from OPTIONS (`MR.settings.loadPlaylist()`, key `MR.playlist.v1`, stored by scene id). Run params are `{ index, pos, order, durations }`: `index` is the scene's index in `config.SCENES` (art, title, duration), `order` the chosen scene indices and `pos` the place in it. Always move on with `MR.playlist.next(params)` (null after the last one) and show "n/k" with `MR.playlist.label(params)`. Never assume `index + 1`. `MR.playlist.normalize(p)` fills `order`/`pos` for callers that only give an index (test mode, `?scene=`).
+
+- **OPTIONS:** Five rows, one per scene: the label, then `[x] [n v]  [-] mm:ss [+]`. The **checkbox** (the whole left column is the touch target) picks whether the scene plays. Unchecking closes the gap in the order, and checking adds the scene last. The **order dropdown** opens a list of 1..k (k = checked scenes), placed below the box or above it if there's no room; choosing m moves the scene to place m. Unchecked rows are dimmed and their dropdown shows `-`. TOTAL counts only the checked scenes, and START is disabled when none is checked. A speaker button in the header toggles SOUND ON/OFF (`MR.sound.v1`). There is no text input, to avoid the Android keyboard. The step is 30 s and the range is 30 s–20 min. Durations and the playlist are saved to `localStorage` (inside try/catch) and restored on the next launch. A big START button is at the bottom.
+- **TRANSITION:** A stand-alone ~4 s title card (`TRANSITION_MS`) shown *before* the scene, full screen with no time bar or STOP. Letterbox bars slide in, "SCENE n/k" types out (k = scenes chosen), the scene's French `title` from `config.js` (e.g. "L'HEURE DU BAIN") drops in letter by letter in the title font (`MR.font.title`: gradient, outline and shadow, derived from the UI glyphs), an underline grows, a shine sweeps across, then the bars close and the scene starts. **The timer does not run during transitions.** Taps are ignored.
+- **SCENE:** The looping animation, time bar and STOP button. The timer starts when the transition ends. Sound cues: `bells` at 50% of the time, `hurry` at 90% (10% left), and `levelUp` when STOP is pressed (see Sound).
 - **GAMEOVER:** Shown when time reaches 0 before STOP. The **same kid** (the normal rig, drawn up to 4x) cries: sad brows and eyes shut tight (`eyes: 'cryA'/'cryB'`), a wailing mouth (`mouth: 'wailA'/'wailB'`) and sobbing dips. Tears well up in the outer eye corners (anchored to the baked `head.eyes` point), roll down the cheeks and drip off below the chin, with wet trails on the cheeks. Big red "GAME OVER" letters (title font, `red` color set) thud in. A CONTINUE button appears after 1.5 s and goes to the next scene's title card (OPTIONS after the last one) so the routine isn't blocked.
 - **GREAT JOB (`sceneDone`):** After STOP, the kid jumps with both arms up, lands and claps under falling confetti. After `GREAT_JOB_MS` (6 s, with a small fill bar) it goes **automatically** to the next scene's title card, or OPTIONS after the last scene until END exists. Taps are ignored.
 - **END (`end` state + art in `src/scenes/end.js`):** Reached by pressing STOP on the last scene in time (a scene 5 time-out goes GAME OVER -> OPTIONS instead). The screen is the house front, after `photo_sample.jpeg`, framed close on the entrance: an anthracite arched door with a glass strip under a dark porch canopy, a beige stone wall on the left, a cream wall with a small window and a lamp, a HOME doormat, terracotta pots, light-brown tiles, and a blue/violet/pink **hydrangea as tall as the kid** on the right. The same kid, **fully dressed with his shoes on** (`ready`), waves goodbye while holding his **wheeled school bag** (black with green trim, drawn at 3x so it's waist-high), with happy hops. "ALL DONE!" drops in (title font) with a shine and confetti. The whole scene is **lit for the real time of day and weather** in Locmariaquer (`src/lighting.js`: `MR.lighting.grade(canvas, look)`, cached per look, Mega Drive-snapped): pink-gold sunrise, normal day, orange evening with the lamp on, blue night with the lamp glow and lit window and door glass, grey for cloudy or fog (plus haze), grey-blue for rain or storm (plus rain streaks; storm adds the same rare gentle glow as the windows), and snow with flakes. "TAP TO PLAY AGAIN" and taps are enabled after `END.TAP_AT` (2.5 s), and a tap goes to OPTIONS.
@@ -150,17 +154,23 @@ The scene names below are defaults in `config.js` and are easy to rename or tran
 
 ## Sound
 
-Sound is out of scope for v1. If added later, it must be optional, use Web Audio with the `webkitAudioContext` fallback, and start only after a user tap (autoplay rules).
+- **The sounds are plain files in `sounds/`**, so the user can replace them (same name, or new paths in `config.SOUND.FILES`). See `sounds/README.md`. **Never synthesize the game's sounds in JS.** The defaults (16-bit mono 22050 Hz WAV) are regenerated by the dev-only `tools/make-sounds.py`.
+- `src/sound.js` (`MR.sound`): `load()` at boot never blocks. With Web Audio (`AudioContext` / `webkitAudioContext`), files are fetched by `XMLHttpRequest` (arraybuffer, `?v=` cache-buster) and decoded with the callback form of `decodeAudioData`. Without it, or when the page is opened from disk (`file://`, where Chrome blocks XHR), it uses one `<audio>` element per sound, else silence. Any sound Web Audio fails to load or decode also falls back to `<audio>`. A missing or undecodable file just stays silent with one warning. Everything is in try/catch.
+- Audio starts only after a user tap: `main.js` calls `MR.sound.unlock()` on every touch/mouse down and touch end.
+- Cues: `MR.sound.cues()` gives `{ reset, update(progress) }`, used by SCENE and by the test mode END OF TIMER. It plays `bells` at `SOUND.HALF_AT` (0.5) and `hurry` at `SOUND.HURRY_AT` (0.9), each once, only the latest one after a stall, and none at progress 1. STOP plays `levelUp`.
+- Optional: the SOUND ON/OFF header button on OPTIONS (default `SOUND.ENABLED`), with volume `SOUND.VOLUME`.
 
 ## Dev tools
 
 - `tools/character-preview.html`: every part, overlay and pose at 4x, with dev warnings on.
+- `tools/sound-preview.html`: plays each file in `sounds/` through `MR.sound` (works even when sound is switched off).
+- `tools/make-sounds.py`: rewrites the default sound files.
 - `tools/scene-strip.html?scene=<id>&t=0,500,...&red=1`: a filmstrip of one scene at the given animation-clock times. Add `&sky=<kind>&tod=<phase>` to force a window-sky look. It also works with headless Chrome `--screenshot` when no browser is attached.
 
 ## Test mode (`src/testmode.js`)
 
 The **TEST MODE** button on OPTIONS (header, bottom-right) (`config.SHOW_TEST_BUTTON`) opens a plain menu with one link per implemented screen: each scene, each scene's title card, GREAT JOB and GAME OVER. The list is built from `config.SCENES` plus `MR.scenes`, so new scenes appear automatically. A link shows **only the animation**, a **speed slider** (x0.25 to x4) and **BACK**. It never advances to another screen.
-- **Scenes** run on a test clock. **END OF TIMER** simulates the last 10 s of a 20 s timer with the real speed-up and red alert, using the shared `MR.timerFx`, the same code as the game.
+- **Scenes** run on a test clock. **END OF TIMER** simulates the last 10 s of a 20 s timer with the real speed-up and red alert, using the shared `MR.timerFx`, the same code as the game, and plays the same `bells`/`hurry` sound cues (`MR.sound.cues()`).
 - **Full-screen states** (title, GREAT JOB, GAME OVER, ALL DONE) are rendered with a virtual `MR.now`, swapped only during their render, and restarted in a loop. Their `update` is never called.
 - **Sky picker** in the test menu: TIME OF DAY (AUTO, SUNRISE, DAY, EVENING, NIGHT) and WEATHER (AUTO, CLEAR, CLOUDY, RAIN, SNOW, FOG, STORM) force `MR.weather.setOverride(phase, kind)`. That applies to every window (bedroom, kitchen, entrance door) and the END lighting. The override is reset to AUTO when leaving test mode, so a real morning always uses the real sky.
 

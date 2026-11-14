@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sound preview</title>
+<style>
+  body { margin: 0; padding: 16px; background: #001; color: #fff; font: 16px sans-serif; }
+  button { display: block; width: 100%; margin: 0 0 12px; padding: 18px; font-size: 18px;
+           background: #36b; color: #fff; border: 2px solid #9bd; }
+  p { color: #99b; font-size: 14px; }
+</style></head>
+<body>
+<h3>Sound preview</h3>
+<p>Plays the files in <b>sounds/</b> (see sounds/README.md) through the game's own player.
+Replace a file, reload this page, and tap to hear it.</p>
+<button id="bells">BELLS: 50% of the time</button>
+<button id="hurry">HURRY: 10% left</button>
+<button id="levelUp">LEVEL UP: STOP pressed</button>
+<p id="info"></p>
+<script>
+// Dev only. ES5.
+(function () {
+  var files = ['config', 'sound'], v = new Date().getTime(), i;
+  for (i = 0; i < files.length; i++) { document.write('<script src="../src/' + files[i] + '.js?v=' + v + '"><\/script>'); }
+}());
+</script>
+<script>
+(function () {
+  var F = MR.config.SOUND.FILES, k, ids = ['bells', 'hurry', 'levelUp'], i;
+  for (k in F) { if (F.hasOwnProperty(k)) { F[k] = '../' + F[k]; } }   // this page lives in tools/
+  MR.sound.load();
+  function bind(id) {
+    document.getElementById(id).onclick = function () { MR.sound.unlock(); MR.sound.play(id, true); };
+  }
+  for (i = 0; i < ids.length; i++) { bind(ids[i]); }
+  document.getElementById('info').innerHTML = 'Backend: ' + MR.sound.mode() + ' (webaudio, element or none)';
+}());
+</script>
+</body></html>

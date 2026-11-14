@@ -84,6 +84,68 @@ var MR = window.MR = window.MR || {};
     }
   }
 
+  // Checkbox: a button drawn as a bevelled square with a pixel check mark.
+  // The square sits in the button's rect (b.box, else centered in b).
+  function drawCheckbox(ctx, b, checked) {
+    var bx = b.box || b, x = bx.x, y = bx.y, n = Math.min(bx.w, bx.h), i, t, cx, cy;
+    ctx.fillStyle = C.bevelDark;
+    ctx.fillRect(x, y, n, n);
+    ctx.fillStyle = checked ? C.startFace : C.barTrough;
+    ctx.fillRect(x + 1, y + 1, n - 2, n - 2);
+    ctx.fillStyle = checked ? C.startLight : C.panelLine;
+    ctx.fillRect(x + 1, y + 1, n - 2, 1);
+    ctx.fillRect(x + 1, y + 1, 1, n - 2);
+    if (b.pressed) {
+      ctx.fillStyle = C.bevelLight;
+      ctx.fillRect(x + 2, y + n - 3, n - 4, 1);
+    }
+    if (!checked) { return; }
+    // check mark: square pen strokes from the corner, short up-left, long up-right
+    t = Math.max(2, Math.round(n / 8));
+    cx = x + Math.round(n * 0.4);
+    cy = y + Math.round(n * 0.7);
+    ctx.fillStyle = '#fff';
+    for (i = 0; i <= Math.round(n * 0.2); i++) { ctx.fillRect(cx - i - (t >> 1), cy - i - (t >> 1), t, t); }
+    for (i = 0; i <= Math.round(n * 0.4); i++) { ctx.fillRect(cx + i - (t >> 1), cy - i - (t >> 1), t, t); }
+  }
+
+  // Dropdown box: "[ text  v ]". Disabled boxes are greyed by drawButton.
+  function drawDropdown(ctx, b, text) {
+    var s = b.labelScale || 2, ah = 3, ax, ay, i, label = b.label;
+    b.label = '';
+    drawButton(ctx, b);
+    b.label = label;
+    ax = b.x + b.w - 11;
+    ay = Math.round(b.y + b.h / 2 - 1);
+    MR.font.drawCaps(ctx, text, b.x + Math.round((b.w - 12 - (MR.font.measure(text, s) - s)) / 2),
+      Math.round(b.y + (b.h - MR.font.CAP_H * s) / 2), b.enabled ? 'white' : 'grey', s);
+    ctx.fillStyle = b.enabled ? C.bevelLight : C.panelLine;
+    for (i = 0; i < ah; i++) { ctx.fillRect(ax + i, ay + i, (ah - i) * 2 - 1, 1); }
+  }
+
+  // Small speaker icon button (sound ON/OFF).
+  function drawSpeaker(ctx, b, on) {
+    var label = b.label, cx, cy;
+    b.label = '';
+    drawButton(ctx, b);
+    b.label = label;
+    cx = b.x + Math.round(b.w / 2) - 5 + (b.pressed ? 1 : 0);
+    cy = b.y + Math.round(b.h / 2) + (b.pressed ? 1 : 0);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(cx, cy - 2, 3, 4);           // body
+    ctx.fillRect(cx + 3, cy - 3, 1, 6);       // cone
+    ctx.fillRect(cx + 4, cy - 4, 1, 8);
+    if (on) {
+      ctx.fillRect(cx + 6, cy - 1, 1, 2);     // waves
+      ctx.fillRect(cx + 8, cy - 3, 1, 6);
+    } else {
+      ctx.fillStyle = C.stopLight;            // red cross
+      ctx.fillRect(cx + 6, cy - 2, 1, 1); ctx.fillRect(cx + 9, cy - 2, 1, 1);
+      ctx.fillRect(cx + 7, cy - 1, 2, 2);
+      ctx.fillRect(cx + 6, cy + 1, 1, 1); ctx.fillRect(cx + 9, cy + 1, 1, 1);
+    }
+  }
+
   // Framed panel used for option rows and cards.
   function drawPanel(ctx, x, y, w, h) {
     ctx.fillStyle = C.bevelDark;
@@ -132,6 +194,9 @@ var MR = window.MR = window.MR || {};
     hitTest: hitTest,
     drawButton: drawButton,
     drawPanel: drawPanel,
+    drawCheckbox: drawCheckbox,
+    drawDropdown: drawDropdown,
+    drawSpeaker: drawSpeaker,
     drawTimeBar: drawTimeBar,
     barColor: barColor,
     formatTime: formatTime

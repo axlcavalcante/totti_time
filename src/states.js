@@ -106,7 +106,80 @@ var MR = window.MR = window.MR || {};
     } catch (e) { /* private mode / storage full: keep going */ }
   }
 
-  MR.settings = { load: load, save: save, clampSnap: clampSnap };
+  // Playlist: which scenes play and in which order. Stored by scene id so it
+  // survives edits of config.SCENES; returned as scene indices in play order.
+  function indexOf(id) {
+    var i;
+    for (i = 0; i < cfg.SCENES.length; i++) { if (cfg.SCENES[i].id === id) { return i; } }
+    return -1;
+  }
+
+  function allScenes() {
+    var out = [], i;
+    for (i = 0; i < cfg.SCENES.length; i++) { out.push(i); }
+    return out;
+  }
+
+  // -> { on: [bool per scene], order: [scene indices of the checked scenes] }
+  function loadPlaylist() {
+    var on = [], order = [], seen = {}, raw, data, i, k;
+    for (i = 0; i < cfg.SCENES.length; i++) { on.push(true); }
+    try {
+      raw = window.localStorage.getItem(cfg.PLAYLIST_KEY);
+      data = raw ? JSON.parse(raw) : null;
+    } catch (e) { data = null; }
+    if (!data || !Array.isArray(data.order) || typeof data.on !== 'object' || !data.on) {
+      return { on: on, order: allScenes() };
+    }
+    for (i = 0; i < cfg.SCENES.length; i++) {
+      if (data.on.hasOwnProperty(cfg.SCENES[i].id)) { on[i] = data.on[cfg.SCENES[i].id] !== false; }
+    }
+    for (i = 0; i < data.order.length; i++) {
+      k = indexOf(data.order[i]);
+      if (k >= 0 && on[k] && !seen[k]) { seen[k] = true; order.push(k); }
+    }
+    for (i = 0; i < cfg.SCENES.length; i++) {      // new / missing scenes go last
+      if (on[i] && !seen[i]) { order.push(i); }
+    }
+    return { on: on, order: order };
+  }
+
+  function savePlaylist(pl) {
+    var data = { on: {}, order: [] }, i;
+    for (i = 0; i < cfg.SCENES.length; i++) { data.on[cfg.SCENES[i].id] = !!pl.on[i]; }
+    for (i = 0; i < pl.order.length; i++) { data.order.push(cfg.SCENES[pl.order[i]].id); }
+    try {
+      window.localStorage.setItem(cfg.PLAYLIST_KEY, JSON.stringify(data));
+    } catch (e) { /* private mode / storage full: keep going */ }
+  }
+
+  MR.settings = {
+    load: load, save: save, clampSnap: clampSnap,
+    loadPlaylist: loadPlaylist, savePlaylist: savePlaylist
+  };
+
+  // Run params carry { index, pos, order, durations }: `index` is the scene's
+  // index in config.SCENES (art, title, duration), `pos` its place in `order`.
+  MR.playlist = {
+    // Fill order/pos when a caller (test mode, ?scene=) only gave an index.
+    normalize: function (p) {
+      var i;
+      if (!p.order || !p.order.length) { p.order = allScenes(); p.pos = -1; }
+      if (typeof p.pos !== 'number' || p.order[p.pos] !== p.index) {
+        p.pos = 0;
+        for (i = 0; i < p.order.length; i++) { if (p.order[i] === p.index) { p.pos = i; } }
+      }
+      return p;
+    },
+    // Params of the next scene's title card, or null after the last one.
+    next: function (p) {
+      var n = p.pos + 1;
+      if (n >= p.order.length) { return null; }
+      return { index: p.order[n], pos: n, order: p.order, durations: p.durations };
+    },
+    isLast: function (p) { return p.pos >= p.order.length - 1; },
+    label: function (p) { return (p.pos + 1) + '/' + p.order.length; }
+  };
 }());
 
 // ------------------------------------------------------------------ OPTIONS
@@ -116,10 +189,15 @@ var MR = window.MR = window.MR || {};
   var MARGIN = 4, ROW_GAP = 2, ROW_PAD = 3, LABEL_H = 8, FLOOR_H = 3;
   var DIGIT_SCALE = 2;
 
+  var DD_W = 34, STEP_GAP = 6;  // order dropdown width, stepper spacing
+
   var durations = [];
-  var rows = [];          // [{ minus, plus, y, h, ctrlY, ctrlH }]
+  var playlist = null;    // { on: [bool per scene], order: [scene indices] }
+  var rows = [];          // [{ check, order, minus, plus, y, h, ctrlY, ctrlH }]
   var buttons = [];       // all buttons, for hit-testing
-  var startBtn = null, testBtn = null;
+  var startBtn = null, testBtn = null, soundBtn = null;
+  var popup = null;       // open order list: { row, x, y, w, h }
+  var popupBtns = [];     // its items "1".."n" (only the first order.length used)
   var active = null;      // button currently held
   var nextRepeat = 0, holdStart = 0;
 
@@ -175,7 +253,58 @@ var MR = window.MR = window.MR || {};
     for (i = 0; i < rows.length; i++) {
       rows[i].minus.enabled = durations[i] > cfg.MIN_SEC;
       rows[i].plus.enabled = durations[i] < cfg.MAX_SEC;
+      rows[i].order.enabled = playlist.on[i];
     }
+    startBtn.enabled = playlist.order.length > 0;
+  }
+
+  // ----- playlist (checkbox = play this scene, dropdown = its place)
+
+  function savePlaylist() {
+    MR.settings.savePlaylist(playlist);
+    refreshEnabled();
+    MR.states.invalidate();
+  }
+
+  function toggle(i) {
+    var at = playlist.order.indexOf(i);
+    playlist.on[i] = !playlist.on[i];
+    if (!playlist.on[i] && at >= 0) { playlist.order.splice(at, 1); }   // others close the gap
+    if (playlist.on[i] && at < 0) { playlist.order.push(i); }           // goes last
+    savePlaylist();
+  }
+
+  function layoutPopup() {
+    var r = rows[popup.row], n = playlist.order.length, itemH = r.ctrlH, j, y;
+    popup.w = r.order.w;
+    popup.h = n * itemH;
+    popup.x = r.order.x;
+    y = r.order.y + r.order.h;
+    if (y + popup.h > L.h) { y = r.order.y - popup.h; }          // no room below: open upward
+    popup.y = Math.max(0, Math.min(L.h - popup.h, y));
+    for (j = 0; j < popupBtns.length; j++) {
+      popupBtns[j].enabled = j < n;
+      popupBtns[j].pressed = false;
+      popupBtns[j].style = playlist.order[j] === popup.row ? 'start' : 'normal';
+      ui.setRect(popupBtns[j], popup.x, popup.y + j * itemH, popup.w, itemH);
+    }
+  }
+
+  function openPopup(i) {
+    if (!playlist.on[i] || !L) { return; }
+    popup = { row: i };
+    layoutPopup();
+    MR.states.invalidate();
+  }
+
+  // Moves the open row's scene to place m (1-based); the others shift.
+  function choose(m) {
+    var i = popup.row, at = playlist.order.indexOf(i);
+    popup = null;
+    if (at < 0) { return; }
+    playlist.order.splice(at, 1);
+    playlist.order.splice(m - 1, 0, i);
+    savePlaylist();
   }
 
   function change(i, delta) {
@@ -189,7 +318,7 @@ var MR = window.MR = window.MR || {};
 
   function totalSec() {
     var s = 0, i;
-    for (i = 0; i < durations.length; i++) { s += durations[i]; }
+    for (i = 0; i < durations.length; i++) { if (playlist.on[i]) { s += durations[i]; } }
     return s;
   }
 
@@ -201,23 +330,45 @@ var MR = window.MR = window.MR || {};
         onPress: function () { change(index, delta); }
       });
     }
+    function checkbox(index) {
+      return ui.button({ onPress: function () { toggle(index); } });
+    }
+    function dropdown(index) {
+      return ui.button({ labelScale: 2, onPress: function () { openPopup(index); } });
+    }
+    function item(m) {
+      return ui.button({ label: String(m), labelScale: 2, onPress: function () { choose(m); } });
+    }
     rows = [];
     buttons = [];
+    popupBtns = [];
     for (i = 0; i < cfg.SCENES.length; i++) {
       rows.push({
+        check: checkbox(i),
+        order: dropdown(i),
         minus: stepper(i, -cfg.STEP_SEC, '-'),
         plus: stepper(i, cfg.STEP_SEC, '+')
       });
-      buttons.push(rows[i].minus, rows[i].plus);
+      buttons.push(rows[i].check, rows[i].order, rows[i].minus, rows[i].plus);
+      popupBtns.push(item(i + 1));
     }
     startBtn = ui.button({
       label: 'START', style: 'start',
       onPress: function () {
+        var order = playlist.order.slice();
+        if (!order.length) { return; }
         MR.settings.save(durations);
-        MR.states.go('transition', { index: 0, durations: durations.slice() });
+        MR.settings.savePlaylist(playlist);
+        MR.states.go('transition', { index: order[0], pos: 0, order: order, durations: durations.slice() });
       }
     });
     buttons.push(startBtn);
+    // sound ON/OFF (speaker icon) in the header; turning it on plays the bells
+    soundBtn = ui.button({ onPress: function () {
+      MR.sound.setEnabled(!MR.sound.isEnabled());
+      MR.sound.play('bells');
+    } });
+    buttons.push(soundBtn);
     // small entry to the test mode (parents / development), top-right header
     testBtn = ui.button({ label: 'TEST MODE', labelScale: 1, onPress: function () { MR.states.go('testMenu'); } });
     if (cfg.SHOW_TEST_BUTTON) { buttons.push(testBtn); }
@@ -250,7 +401,7 @@ var MR = window.MR = window.MR || {};
   function layout(w, h, metrics) {
     var s = sizes(metrics), n = cfg.SCENES.length, kid = kidSize(),
       spare = h - minHeight(metrics), kidScale = 1, grow, gap, y, i, r,
-      btnW, digitsW, ctrlW, cx, panelW = w - MARGIN * 2;
+      btnW, digitsW, ctrlW, cx, panelW = w - MARGIN * 2, cbX, ddX, stepX, stepW;
 
     // Spend spare height on: a 2x kid, then taller rows, then even gaps.
     if (spare >= kid.h + 8) { kidScale = 2; spare -= kid.h; s.headerH += kid.h; }
@@ -272,19 +423,28 @@ var MR = window.MR = window.MR || {};
     L.textX = L.kidRect.x + L.kidRect.w + 4;
     y += s.headerH + MARGIN + gap;
 
-    btnW = Math.max(s.ctrlH + 8, 40);
+    // [x] [n v]   [-] mm:ss [+]   (checkbox, order dropdown, steppers)
+    cbX = MARGIN + 4;
+    ddX = cbX + s.ctrlH + 4;
+    stepX = ddX + DD_W + 6;
+    stepW = MARGIN + panelW - 4 - stepX;
     digitsW = font.measure('00:00', DIGIT_SCALE) - DIGIT_SCALE;
-    ctrlW = btnW * 2 + digitsW + 24;
-    cx = Math.round((w - ctrlW) / 2);
+    btnW = Math.min(Math.max(s.ctrlH + 8, 40), Math.floor((stepW - digitsW - STEP_GAP * 2) / 2));
+    ctrlW = btnW * 2 + digitsW + STEP_GAP * 2;
+    cx = stepX + Math.floor((stepW - ctrlW) / 2);
     for (i = 0; i < n; i++) {
       r = rows[i];
       r.y = y;
       r.h = s.rowH;
       r.ctrlY = y + ROW_PAD + LABEL_H + ROW_PAD;
       r.ctrlH = s.ctrlH;
+      // the whole left column toggles; the square sits beside the steppers
+      ui.setRect(r.check, MARGIN, y, cbX - MARGIN + s.ctrlH + 2, s.rowH);
+      r.check.box = { x: cbX, y: r.ctrlY, w: s.ctrlH, h: s.ctrlH };
+      ui.setRect(r.order, ddX, r.ctrlY, DD_W, s.ctrlH);
       ui.setRect(r.minus, cx, r.ctrlY, btnW, s.ctrlH);
       ui.setRect(r.plus, cx + ctrlW - btnW, r.ctrlY, btnW, s.ctrlH);
-      r.digitsX = cx + btnW + 12;
+      r.digitsX = cx + btnW + STEP_GAP;
       r.digitsY = r.ctrlY + Math.round((s.ctrlH - font.CAP_H * DIGIT_SCALE) / 2);
       y += s.rowH + ROW_GAP;
     }
@@ -296,12 +456,14 @@ var MR = window.MR = window.MR || {};
     ui.setRect(startBtn, MARGIN, y, panelW, s.startH);
     startBtn.labelScale = s.startH >= 40 ? 3 : 2;
     ui.setRect(testBtn, w - MARGIN - 66, L.floorY - 22, 66, 19);
+    ui.setRect(soundBtn, cfg.SHOW_TEST_BUTTON ? testBtn.x - 3 - 26 : w - MARGIN - 26, L.floorY - 22, 26, 19);
+    if (popup) { layoutPopup(); }
   }
 
   // ----- drawing
 
   function render(ctx, w, h) {
-    var i, r, sc, label, titleW, titleScale, blockH, ty, subW;
+    var i, r, sc, label, titleW, titleScale, blockH, ty, subW, on;
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, w, h);
     if (!L) { return; }
@@ -320,29 +482,39 @@ var MR = window.MR = window.MR || {};
     ty = L.headerY + Math.round((L.floorY - L.headerY - blockH) / 2);
     sc = L.textX + Math.round((w - MARGIN - L.textX) / 2);
     font.drawCentered(ctx, 'MORNING ROUTINE', sc, ty, 'yellow', titleScale);
-    // keep the subtitle clear of the TEST MODE button on short headers
+    // keep the subtitle clear of the header buttons (sound, TEST MODE)
     subW = font.measure('SET THE TIMERS', 1);
-    if (cfg.SHOW_TEST_BUTTON && sc + subW / 2 > testBtn.x - 4 &&
-        ty + font.CAP_H * titleScale + 6 + font.CAP_H > testBtn.y) {
-      sc = Math.round(testBtn.x - 6 - subW / 2);
+    if (sc + subW / 2 > soundBtn.x - 4 &&
+        ty + font.CAP_H * titleScale + 6 + font.CAP_H > soundBtn.y) {
+      sc = Math.round(soundBtn.x - 6 - subW / 2);
     }
     font.drawCentered(ctx, 'SET THE TIMERS', sc, ty + font.CAP_H * titleScale + 6, 'dim', 1);
 
-    // One panel per scene: "1 SHOWER" then [-] mm:ss [+]
+    // One panel per scene: "SHOWER", then [x] [n v]  [-] mm:ss [+]
     for (i = 0; i < rows.length; i++) {
       r = rows[i];
+      on = playlist.on[i];
       ui.drawPanel(ctx, L.panelX, r.y, L.panelW, r.h);
-      font.drawCaps(ctx, String(i + 1), L.panelX + 6, r.y + ROW_PAD + 1, 'yellow', 1);
       label = cfg.SCENES[i].label;
-      font.drawCaps(ctx, label, L.panelX + 6 + font.ADVANCE * 2, r.y + ROW_PAD + 1, 'white', 1);
+      font.drawCaps(ctx, label, L.panelX + 4, r.y + ROW_PAD + 1, on ? 'white' : 'grey', 1);
+      ui.drawCheckbox(ctx, r.check, on);
+      ui.drawDropdown(ctx, r.order, on ? String(playlist.order.indexOf(i) + 1) : '-');
       ui.drawButton(ctx, r.minus);
       ui.drawButton(ctx, r.plus);
-      font.drawCaps(ctx, ui.formatTime(durations[i]), r.digitsX, r.digitsY, 'white', DIGIT_SCALE);
+      font.drawCaps(ctx, ui.formatTime(durations[i]), r.digitsX, r.digitsY, on ? 'white' : 'dim', DIGIT_SCALE);
     }
 
-    font.drawCentered(ctx, 'TOTAL ' + ui.formatTime(totalSec()), Math.round(w / 2), L.totalY, 'dim', 1);
+    font.drawCentered(ctx, playlist.order.length ? 'TOTAL ' + ui.formatTime(totalSec()) : 'PICK AT LEAST ONE SCENE',
+      Math.round(w / 2), L.totalY, 'dim', 1);
     ui.drawButton(ctx, startBtn);
+    ui.drawSpeaker(ctx, soundBtn, MR.sound.isEnabled());
     if (cfg.SHOW_TEST_BUTTON) { ui.drawButton(ctx, testBtn); }
+
+    // the open order list, on top of everything
+    if (popup) {
+      ui.drawPanel(ctx, popup.x - 2, popup.y - 2, popup.w + 4, popup.h + 4);
+      for (i = 0; i < playlist.order.length; i++) { ui.drawButton(ctx, popupBtns[i]); }
+    }
   }
 
   // ----- input
@@ -364,6 +536,8 @@ var MR = window.MR = window.MR || {};
     enter: function (params, now) {
       if (!rows.length) { buildButtons(); prebake(); }
       durations = MR.settings.load();
+      playlist = MR.settings.loadPlaylist();
+      popup = null;
       refreshEnabled();
       active = null;
       t0 = now;
@@ -388,7 +562,13 @@ var MR = window.MR = window.MR || {};
     render: render,
 
     pointerDown: function (x, y, now) {
-      var b = ui.hitTest(buttons, x, y);
+      var b;
+      if (popup) {                         // the open list takes every tap
+        b = ui.hitTest(popupBtns, x, y);
+        if (!b) { popup = null; MR.states.invalidate(); return; }
+      } else {
+        b = ui.hitTest(buttons, x, y);
+      }
       if (L && !b && ui.contains(L.kidRect, x, y)) { waveStart = now; return; }
       if (!b) { return; }
       active = b;
@@ -469,7 +649,7 @@ var MR = window.MR = window.MR || {};
     ctx.drawImage(bg, 0, 0);
 
     // "SCENE 1/5", typed
-    sub = 'SCENE ' + (params.index + 1) + '/' + cfg.SCENES.length;
+    sub = 'SCENE ' + MR.playlist.label(params);
     n = Math.max(0, Math.min(sub.length, Math.floor((t - SUB_AT) / SUB_MS) + 1));
     if (n > 0) {
       font.drawCaps(ctx, sub.substr(0, n), Math.round(cx - (font.measure(sub, 1) - 1) / 2),
@@ -525,7 +705,7 @@ var MR = window.MR = window.MR || {};
 
   MR.states.add('transition', {
     enter: function (p, now) {
-      params = p;
+      params = MR.playlist.normalize(p);
       t0 = now;
       done = false;
       if (L) { prepare(); }
@@ -611,7 +791,8 @@ var MR = window.MR = window.MR || {};
 (function () {
   var cfg = MR.config, C = MR.palette.UI, ui = MR.ui, font = MR.font;
 
-  var index = 0, durations = [], mod = null;
+  var index = 0, durations = [], mod = null, run = null;
+  var cues = MR.sound.cues();   // bells at 50%, hurry at 90% (config.SOUND)
   var startTime = 0, duration = 1, last = 0, clock = 0, progress = 0, finished = false;
   var active = null, L = null;
   // red alert
@@ -619,13 +800,15 @@ var MR = window.MR = window.MR || {};
   var FX = MR.timerFx;
   // STOP: GREAT JOB, or the END screen after the last scene
   var stopBtn = ui.button({ label: 'STOP', style: 'stop', onPress: function () {
-    finish(index === cfg.SCENES.length - 1 ? 'end' : 'sceneDone');
+    if (finished) { return; }
+    MR.sound.play('levelUp');
+    finish(MR.playlist.isLast(run) ? 'end' : 'sceneDone');
   } });
 
   function finish(next) {
     if (finished) { return; }
     finished = true;
-    MR.states.go(next, { index: index, durations: durations });
+    MR.states.go(next, { index: index, pos: run.pos, order: run.order, durations: durations });
   }
 
   function stopMin(metrics) { return Math.max(metrics.minTouch + 8, 28); }
@@ -675,7 +858,7 @@ var MR = window.MR = window.MR || {};
     ctx.restore();
 
     remaining = Math.ceil(duration * (1 - progress) / 1000);
-    font.drawCaps(ctx, (index + 1) + '/' + cfg.SCENES.length + ' ' + cfg.SCENES[index].label,
+    font.drawCaps(ctx, MR.playlist.label(run) + ' ' + cfg.SCENES[index].label,
       4, L.readoutY + 1, 'dim', 1);
     font.drawCaps(ctx, ui.formatTime(remaining), w - 4 - (font.measure('00:00', 1) - 1),
       L.readoutY + 1, 'white', 1);
@@ -690,7 +873,10 @@ var MR = window.MR = window.MR || {};
   MR.states.add('scene', {
     enter: function (params, now) {
       index = params.index || 0;
+      params.index = index;
+      run = MR.playlist.normalize(params);
       durations = params.durations || MR.settings.load();
+      cues.reset();
       mod = MR.scenes && MR.scenes[cfg.SCENES[index].id] || null;
       if (mod && !mod.ready) { mod.init(); mod.ready = true; }
       startTime = now;
@@ -730,7 +916,8 @@ var MR = window.MR = window.MR || {};
         pulsePhase += dt / 1000 * pulseHz;
       }
       MR.states.invalidate();
-      if (progress >= 1) { finish('gameover'); }
+      if (progress >= 1) { finish('gameover'); return; }
+      cues.update(progress);
     },
 
     render: render,
@@ -819,7 +1006,8 @@ var MR = window.MR = window.MR || {};
 
   function render(ctx, w, h) {
     var cx = Math.round(w / 2), t = MR.now() - t0, a = stepAt(t), st = a.step,
-      lift = 0, b, handY, next = cfg.SCENES[params.index + 1], shadowW, k;
+      lift = 0, b, handY, nextRun = MR.playlist.next(params), shadowW, k,
+      next = nextRun ? cfg.SCENES[nextRun.index] : null;
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, w, h);
     if (!L) { return; }
@@ -858,7 +1046,7 @@ var MR = window.MR = window.MR || {};
   MR.states.add('sceneDone', {
     enter: function (p, now) {
       var j;
-      params = p;
+      params = MR.playlist.normalize(p);
       t0 = now;
       done = false;
       for (j = 0; j < STEPS.length; j++) { MR.character.bake(STEPS[j].pose); }   // pre-bake
@@ -868,12 +1056,12 @@ var MR = window.MR = window.MR || {};
       L.groundY = Math.min(h - 80, Math.max(150, Math.round(h / 2) + 40));
     },
     update: function (now) {
-      var n = params.index + 1;
+      var n;
       MR.states.invalidate();
       if (!done && now - t0 >= cfg.GREAT_JOB_MS) {
         done = true;
-        if (n < cfg.SCENES.length) { MR.states.go('transition', { index: n, durations: params.durations }); }
-        else { MR.states.go('options'); }
+        n = MR.playlist.next(params);
+        if (n) { MR.states.go('transition', n); } else { MR.states.go('options'); }
       }
     },
     render: render
@@ -915,9 +1103,8 @@ var MR = window.MR = window.MR || {};
   }
 
   function next() {
-    var n = params.index + 1;
-    if (n < cfg.SCENES.length) { MR.states.go('transition', { index: n, durations: params.durations }); }
-    else { MR.states.go('options'); }
+    var n = MR.playlist.next(params);
+    if (n) { MR.states.go('transition', n); } else { MR.states.go('options'); }
   }
 
   function easeOutBounce(k) {
@@ -1061,7 +1248,7 @@ var MR = window.MR = window.MR || {};
   MR.states.add('gameover', {
     enter: function (p, now) {
       var j;
-      params = p;
+      params = MR.playlist.normalize(p);
       t0 = now;
       active = null;
       continueBtn.pressed = false;
