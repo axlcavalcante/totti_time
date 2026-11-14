@@ -164,9 +164,11 @@ var MR = window.MR = window.MR || {};
     var clock = 0, vt = 0, VBASE = 1e9, metrics = null;
     // END OF TIMER simulation: a 20 s timer starting at 50% (10 s left)
     var SIM_D = 20000, SIM_START = 0.5, sim = null;    // sim = { t, phase, alertWindow }
+    var simCues = MR.sound.cues();
     var backBtn = ui.button({ label: 'BACK', labelScale: 2, onPress: function () { MR.states.go('testMenu'); } });
     var endBtn = ui.button({ label: 'END OF TIMER', labelScale: 1, onPress: function () {
       sim = { t: 0, phase: 0, alertWindow: FX.alertWindow(SIM_D) };
+      simCues.reset();                 // same bells / hurry cues as the game
     } });
     input = pressable(function () { return mod ? [backBtn, endBtn] : [backBtn]; });
 
@@ -307,6 +309,7 @@ var MR = window.MR = window.MR || {};
             st = simState();
             if (st.progress >= 1) { sim = null; }
             else {
+              simCues.update(st.progress);
               clock += dt * FX.speed(st.progress);
               if (st.alertOn) { sim.phase += dt / 1000 * FX.pulseHz(st.remaining, sim.alertWindow); }
             }

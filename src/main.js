@@ -134,6 +134,7 @@ MR.now = (window.performance && window.performance.now) ?
   function onTouchStart(e) {
     var t, p;
     e.preventDefault();
+    MR.sound.unlock();                      // audio may only start in a gesture
     if (activeTouch !== null) { return; }   // one press at a time
     t = e.changedTouches[0];
     activeTouch = t.identifier;
@@ -154,6 +155,7 @@ MR.now = (window.performance && window.performance.now) ?
   function onTouchEnd(e) {
     var t, p;
     e.preventDefault();
+    MR.sound.unlock();
     if (activeTouch === null) { return; }
     t = findTouch(e.changedTouches, activeTouch);
     if (!t) { return; }
@@ -173,6 +175,7 @@ MR.now = (window.performance && window.performance.now) ?
   // Mouse, for desktop testing.
   function onMouseDown(e) {
     var p = toNative(e.clientX, e.clientY);
+    MR.sound.unlock();
     mouseDown = true;
     MR.states.pointerDown(p.x, p.y, MR.now());
   }
@@ -218,6 +221,7 @@ MR.now = (window.performance && window.performance.now) ?
 
     MR.font.init();
     if (MR.weather) { MR.weather.start(); }     // optional live sky; never blocks
+    MR.sound.load();                             // notification sounds; never blocks
 
     canvas.addEventListener('touchstart', onTouchStart, false);
     canvas.addEventListener('touchmove', onTouchMove, false);
